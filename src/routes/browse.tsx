@@ -123,7 +123,11 @@ function BrowsePage() {
   };
 
   const reachedMax = search.pageCount >= MAX_PAGE_COUNT;
-  const reachedEnd = result.games.length >= result.totalCount;
+  // totalCount can come back as 0 when Steam serves a markup variant we don't
+  // parse (seen on datacenter IPs for cat 24). In that case "reached end" is
+  // unknowable from the count alone; rely on pagination cap + page-fill below.
+  const knownTotal = result.totalCount > 0 ? result.totalCount : null;
+  const reachedEnd = knownTotal !== null && result.games.length >= knownTotal;
   const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
 
   return (
@@ -247,8 +251,9 @@ function BrowsePage() {
                 fontSize: 14,
               }}
             >
-              {result.games.length.toLocaleString()} of{' '}
-              {result.totalCount.toLocaleString()} games
+              {knownTotal === null
+                ? `${result.games.length.toLocaleString()} games`
+                : `${result.games.length.toLocaleString()} of ${knownTotal.toLocaleString()} games`}
               {search.specials && ' · sale only'}
             </Typography>
           </Stack>

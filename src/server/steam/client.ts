@@ -59,15 +59,47 @@ export async function searchSteam(opts: SearchOptions): Promise<SteamSearchPage>
   const cacheKey = `search:${url}`;
 
   return withCache(cacheKey, SEARCH_TTL_MS, async () => {
-    const html = await fetchText(url);
-    const games = parseSearchHtml(html);
-    const totalCount = extractTotalCount(html);
+    const body = await fetchText(url);
+    const { html, totalCount } = unwrapSearchResponse(body);
     return {
       totalCount,
       start: page * 25,
-      games,
+      games: parseSearchHtml(html),
     };
   });
+}
+
+/**
+ * Steam returns one of two shapes for `?infinite_scroll=1`. Residential IPs
+ * get raw HTML with a `<div class="search_results_count">N</div>` element.
+ * Datacenter IPs (Coolify, AWS, etc.) get a JSON envelope:
+ *   { results_html: "<a class=\"search_result_row\" ...>", total_count: 852, ... }
+ * cheerio finds the embedded anchors either way, but the count regex only
+ * matches the residential shape, so the JSON-envelope case used to render
+ * "25 of 0" in production. Detect by sniffing the first non-whitespace char.
+ */
+function unwrapSearchResponse(body: string): { html: string; totalCount: number } {
+  const trimmed = body.trimStart();
+  if (trimmed.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(trimmed) as {
+        results_html?: unknown;
+        total_count?: unknown;
+      };
+      const html = typeof parsed.results_html === 'string' ? parsed.results_html : '';
+      const total =
+        typeof parsed.total_count === 'number'
+          ? parsed.total_count
+          : typeof parsed.total_count === 'string'
+            ? Number.parseInt(parsed.total_count.replace(/,/g, ''), 10)
+            : NaN;
+      return { html, totalCount: Number.isFinite(total) ? total : 0 };
+    } catch {
+      // fall through to HTML parsing — better to render rows with totalCount=0
+      // than to throw and blank the page.
+    }
+  }
+  return { html: body, totalCount: extractTotalCount(body) };
 }
 
 type AppDetailsResponse = Record<string, { success: boolean; data?: SteamAppDetails }>;
@@ -133,8 +165,14 @@ async function fetchWithTimeout(
 }
 
 function extractTotalCount(html: string): number {
-  // Steam renders "<div class=\"search_results_count\">17,648 results match your search.</div>"
-  const match = /<div\s+class="search_results_count">\s*([\d,]+)/.exec(html);
+  // Steam renders the count as either:
+  //   <div class="search_results_count">17,648 results match your search.</div>
+  // or, when extra classes/attributes are tacked on by A/B variants:
+  //   <div class="search_results_count something-else" data-x="y">17,648 ...</div>
+  // The original regex required `>` immediately after the closing quote, so
+  // any extra class/attr meant a 0 fall-through and "X of 0" in the UI.
+  const match =
+    /class="[^"]*\bsearch_results_count\b[^"]*"[^>]*>\s*([\d,]+)/.exec(html);
   if (match?.[1] === undefined) return 0;
   const num = Number.parseInt(match[1].replace(/,/g, ''), 10);
   return Number.isFinite(num) ? num : 0;
