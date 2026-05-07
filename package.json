@@ -1,0 +1,46 @@
+{
+  "name": "couchy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Curated discovery for Steam couch co-op games",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "start": "node .output/server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix"
+  },
+  "dependencies": {
+    "@emotion/cache": "^11.14.0",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.0",
+    "@mui/icons-material": "^9.0.1",
+    "@mui/material": "^9.0.1",
+    "@tanstack/react-router": "^1.166.13",
+    "@tanstack/react-router-devtools": "^1.166.13",
+    "@tanstack/react-start": "^1.167.65",
+    "cheerio": "^1.0.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@tanstack/router-cli": "^1.166.43",
+    "@tanstack/router-plugin": "^1.167.35",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.0.7",
+    "@types/react-dom": "^19.0.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.18.0",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "eslint-plugin-react-refresh": "^0.4.18",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
