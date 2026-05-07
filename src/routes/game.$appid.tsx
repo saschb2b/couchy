@@ -6,6 +6,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { fetchAppDetails } from '../server/fns';
+import { COUCH_CATEGORY_IDS } from '../server/steam/categories';
 import type { SteamAppDetails } from '../server/steam/types';
 
 export const Route = createFileRoute('/game/$appid')({
@@ -20,8 +21,6 @@ export const Route = createFileRoute('/game/$appid')({
   staleTime: 24 * 60 * 60 * 1000,
   component: GameDetailPage,
 });
-
-const COUCH_CATEGORY_IDS = new Set<number>([24, 39, 40, 47, 48]);
 
 function libraryHeroUrl(appid: number): string {
   return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
