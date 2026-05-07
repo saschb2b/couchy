@@ -6,12 +6,12 @@ import {
 } from '@tanstack/react-router';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
+import type { EmotionCache } from '@emotion/cache';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
+import { useMemo } from 'react';
 import { theme } from '../theme';
 import { AppShell } from '../components/AppShell';
-
-const emotionCache = createCache({ key: 'mui', prepend: true });
 
 export const Route = createRootRoute({
   head: () => ({
@@ -51,13 +51,22 @@ export const Route = createRootRoute({
 });
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  // Per-render Emotion cache. On the server this is freshly created for every
+  // request (so concurrent requests can't poison each other's style insertions);
+  // on the client it's stable across re-renders thanks to useMemo. React 19's
+  // resource hoisting picks up the resulting <style data-precedence> tags and
+  // moves them into <head>.
+  const cache = useMemo<EmotionCache>(
+    () => createCache({ key: 'mui', prepend: true }),
+    [],
+  );
   return (
     <html lang="en">
       <head>
         <HeadContent />
       </head>
       <body>
-        <CacheProvider value={emotionCache}>
+        <CacheProvider value={cache}>
           <ThemeProvider theme={theme} defaultMode="dark">
             <CssBaseline />
             {children}

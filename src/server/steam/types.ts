@@ -34,12 +34,19 @@ export interface SteamAppDetails {
   developers?: string[];
   publishers?: string[];
   screenshots?: { id: number; path_thumbnail: string; path_full: string }[];
+  /**
+   * Steam moved trailers to streaming formats some time in late 2024.
+   * The legacy `webm` / `mp4` keys are gone; current schema returns
+   * MPEG-DASH and HLS playlist URLs. Use `hls_h264` with a player.
+   */
   movies?: {
     id: number;
     name: string;
     thumbnail: string;
-    webm: { '480': string; max: string };
-    mp4: { '480': string; max: string };
+    dash_av1?: string;
+    dash_h264?: string;
+    hls_h264?: string;
+    highlight?: boolean;
   }[];
   categories?: { id: number; description: string }[];
   genres?: { id: string; description: string }[];

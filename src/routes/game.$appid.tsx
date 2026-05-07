@@ -12,6 +12,8 @@ import { COUCH_CATEGORY_IDS } from '../server/steam/categories';
 import type { SteamAppDetails } from '../server/steam/types';
 import { Lightbox } from '../components/Lightbox';
 import type { LightboxImage } from '../components/Lightbox';
+import { ShortlistTextButton } from '../components/ShortlistButton';
+import { TrailerPlayer } from '../components/TrailerPlayer';
 
 export const Route = createFileRoute('/game/$appid')({
   loader: async ({ params }) => {
@@ -164,6 +166,8 @@ function GameDetailPage() {
               </Typography>
             </Box>
 
+            <TrailerBlock data={data} />
+
             {screenshots.length > 0 && (
               <Box sx={{ mb: { xs: 5, md: 7 } }}>
                 <Stack
@@ -310,18 +314,24 @@ function GameDetailPage() {
               }}
             >
               <PriceBlock data={data} />
-              <Button
-                variant="contained"
-                size="large"
-                fullWidth
-                href={storeUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
-                sx={{ mt: 3 }}
-              >
-                Open on Steam
-              </Button>
+              <Stack spacing={1.5} sx={{ mt: 3 }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  fullWidth
+                  href={storeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  endIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
+                >
+                  Open on Steam
+                </Button>
+                <ShortlistTextButton
+                  appid={data.steam_appid}
+                  name={data.name}
+                  capsuleImage={data.capsule_image ?? data.header_image}
+                />
+              </Stack>
 
               <Box sx={{ height: 1, backgroundColor: 'divider', my: 4 }} />
 
@@ -367,6 +377,33 @@ function GameDetailPage() {
         gameName={data.name}
       />
     </>
+  );
+}
+
+function TrailerBlock({ data }: { data: SteamAppDetails }) {
+  const trailer = data.movies?.[0];
+  if (trailer?.hls_h264 === undefined) return null;
+  return (
+    <Box sx={{ mb: { xs: 5, md: 7 } }}>
+      <Stack direction="row" spacing={2} sx={{ alignItems: 'baseline', mb: 2 }}>
+        <Typography variant="overline" color="text.secondary">
+          Trailer
+        </Typography>
+        <Box sx={{ flex: 1, height: 1, backgroundColor: 'divider' }} />
+      </Stack>
+      <Box
+        sx={{
+          position: 'relative',
+          aspectRatio: '16 / 9',
+          overflow: 'hidden',
+          border: '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'background.paper',
+        }}
+      >
+        <TrailerPlayer src={trailer.hls_h264} poster={trailer.thumbnail} />
+      </Box>
+    </Box>
   );
 }
 

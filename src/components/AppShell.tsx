@@ -7,12 +7,14 @@ import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import { Link } from '@tanstack/react-router';
 import { ButtonLink } from './RouterLinks';
+import { useShortlist } from '../lib/useShortlist';
 
 interface AppShellProps {
   children: ReactNode;
 }
 
 export function AppShell({ children }: AppShellProps) {
+  const shortlistCount = useShortlist().length;
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar
@@ -88,6 +90,34 @@ export function AppShell({ children }: AppShellProps) {
                 color="inherit"
               >
                 Browse
+              </ButtonLink>
+              <ButtonLink
+                to="/shortlist"
+                variant="text"
+                color="inherit"
+                sx={{
+                  // Badge with count, only when something is saved.
+                  '& .shortlist-badge': {
+                    ml: 0.75,
+                    minWidth: 22,
+                    height: 22,
+                    px: 0.75,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    backgroundColor: 'primary.main',
+                    color: 'background.default',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  },
+                }}
+              >
+                Saved
+                {shortlistCount > 0 && (
+                  <Box component="span" className="shortlist-badge">
+                    {shortlistCount}
+                  </Box>
+                )}
               </ButtonLink>
               <ButtonLink to="/about" variant="text" color="inherit">
                 About

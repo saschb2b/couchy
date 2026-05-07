@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { CardActionAreaLink } from './RouterLinks';
+import { ShortlistIconButton } from './ShortlistButton';
 import type { SteamGameSummary } from '../server/steam/types';
 
 interface GameCardProps {
@@ -46,8 +47,16 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
         '&:hover .game-card-title': {
           color: 'primary.main',
         },
+        '&:hover .shortlist-icon-wrap': {
+          opacity: 1,
+        },
       }}
     >
+      <ShortlistIconButton
+        appid={game.appid}
+        name={game.name}
+        capsuleImage={game.capsuleImage}
+      />
       <CardActionAreaLink
         to="/game/$appid"
         params={{ appid: String(game.appid) }}
