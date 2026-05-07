@@ -29,16 +29,31 @@ function DiscoveryPage() {
       <Container maxWidth="xl">
         <MoodGrid />
         {rails.length === 0 && (
-          <Box sx={{ py: 8, textAlign: 'center' }}>
-            <Typography variant="h6">Steam isn't responding right now.</Typography>
-            <Typography variant="body2" color="text.secondary">
-              Try refreshing in a moment — Couchy proxies the Steam store and may be rate-limited.
+          <Box sx={{ py: 10 }}>
+            <Typography
+              variant="h3"
+              sx={{ fontStyle: 'italic', mb: 1 }}
+            >
+              Steam went quiet.
+            </Typography>
+            <Typography
+              color="text.secondary"
+              sx={{
+                fontFamily: 'h1.fontFamily',
+                fontStyle: 'italic',
+                fontSize: 18,
+                maxWidth: 520,
+              }}
+            >
+              Couchy proxies the Steam Store and might be hitting their rate
+              limit. Try again in a minute.
             </Typography>
           </Box>
         )}
-        {rails.map((rail: DiscoveryRail) => (
+        {rails.map((rail: DiscoveryRail, idx: number) => (
           <GameRail
             key={rail.key}
+            index={idx + 1}
             title={rail.title}
             subtitle={rail.subtitle}
             games={rail.games}
@@ -52,12 +67,28 @@ function DiscoveryPage() {
 
 function DiscoveryPendingState() {
   return (
-    <Container maxWidth="xl" sx={{ py: 10, textAlign: 'center' }}>
-      <Typography variant="h5" sx={{ mb: 1 }}>
-        Loading the couch picks…
+    <Container maxWidth="xl" sx={{ py: { xs: 12, md: 18 } }}>
+      <Typography
+        variant="h2"
+        sx={{
+          fontStyle: 'italic',
+          fontSize: { xs: 36, md: 56 },
+          mb: 2,
+          maxWidth: '14ch',
+        }}
+      >
+        Talking to Steam…
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Talking to Steam. Should only take a second.
+      <Typography
+        color="text.secondary"
+        sx={{
+          fontFamily: 'h1.fontFamily',
+          fontStyle: 'italic',
+          fontSize: 18,
+          maxWidth: 480,
+        }}
+      >
+        Pulling tonight&apos;s couch picks. Usually one second.
       </Typography>
     </Container>
   );
@@ -65,11 +96,32 @@ function DiscoveryPendingState() {
 
 function DiscoveryErrorState({ error }: { error: Error }) {
   return (
-    <Container maxWidth="xl" sx={{ py: 10, textAlign: 'center' }}>
-      <Typography variant="h5" sx={{ mb: 1 }}>
-        Couldn't load the discovery feed.
+    <Container maxWidth="xl" sx={{ py: { xs: 12, md: 18 } }}>
+      <Typography
+        variant="h2"
+        sx={{
+          fontStyle: 'italic',
+          fontSize: { xs: 36, md: 56 },
+          mb: 2,
+          maxWidth: '14ch',
+        }}
+      >
+        Steam ghosted us.
       </Typography>
-      <Typography variant="body2" color="text.secondary">
+      <Typography
+        color="text.secondary"
+        sx={{
+          fontFamily: 'h1.fontFamily',
+          fontStyle: 'italic',
+          fontSize: 18,
+          mb: 2,
+          maxWidth: 520,
+        }}
+      >
+        We proxy everything through the Steam Store, so this is usually
+        a rate-limit blip. Try again in a minute.
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
         {error.message}
       </Typography>
     </Container>

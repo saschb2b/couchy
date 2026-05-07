@@ -3,10 +3,7 @@ import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
-import Chip from '@mui/material/Chip';
 import Button from '@mui/material/Button';
-import FormControlLabel from '@mui/material/FormControlLabel';
-import Switch from '@mui/material/Switch';
 import { searchCouchGames } from '../server/fns';
 import { STEAM_CATEGORY } from '../server/steam/categories';
 import type { SteamSort } from '../server/steam/categories';
@@ -25,18 +22,18 @@ interface BrowseSearch {
 const PAGE_SIZE = 25;
 const MAX_PAGE_COUNT = 8;
 
-const MOODS: { value: Mood; label: string }[] = [
-  { value: 'all', label: 'All couch games' },
-  { value: 'party', label: 'Party' },
-  { value: 'brain', label: 'Brain & strategy' },
-  { value: 'story', label: 'Co-op story' },
-  { value: 'versus', label: 'Versus' },
+const MOODS: { value: Mood; label: string; hint: string }[] = [
+  { value: 'all', label: 'Everything', hint: 'All same-screen games' },
+  { value: 'party', label: 'Loud & silly', hint: 'Party-friendly' },
+  { value: 'brain', label: 'Plot, plan, betray', hint: 'Strategy & co-op planning' },
+  { value: 'story', label: 'Side-by-side', hint: 'Story campaigns' },
+  { value: 'versus', label: 'Settle a grudge', hint: 'Versus & brawlers' },
 ];
 
-const SORTS: { value: SteamSort; label: string }[] = [
-  { value: 'topsellers', label: 'Top sellers' },
-  { value: 'newreleases', label: 'New releases' },
-  { value: 'globaltopsellers', label: 'Global top' },
+const SORTS: { value: SteamSort; label: string; hint: string }[] = [
+  { value: 'topsellers', label: 'Top sellers', hint: 'What people are buying' },
+  { value: 'newreleases', label: 'New releases', hint: 'Just came out' },
+  { value: 'globaltopsellers', label: 'All-time hits', hint: 'Long-term favourites' },
 ];
 
 function moodToCategoryIds(mood: Mood): number[] {
@@ -109,7 +106,6 @@ function BrowsePage() {
   const isLoading = Route.useMatch({ select: (m) => m.status === 'pending' });
   const navigate = useNavigate();
 
-  /** Patch search params and reset paging to the first page (filter changed → start over). */
   const updateFilter = (patch: Partial<Omit<BrowseSearch, 'pageCount'>>) => {
     void navigate({
       to: '/browse',
@@ -127,113 +123,285 @@ function BrowsePage() {
 
   const reachedMax = search.pageCount >= MAX_PAGE_COUNT;
   const reachedEnd = result.games.length >= result.totalCount;
+  const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
 
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" sx={{ fontWeight: 800, mb: 1 }}>
-        Browse couch picks
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Filter by mood, sort, and sale. Same-screen / split-screen filter is applied to every result.
-      </Typography>
-
-      <Stack spacing={2} sx={{ mb: 4 }}>
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            Mood
+    <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
+      {/* Editorial header */}
+      <Stack spacing={2} sx={{ mb: { xs: 5, md: 8 }, maxWidth: 920 }}>
+        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+          <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
+          <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
+            The catalog · filtered
           </Typography>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+        </Stack>
+        <Typography
+          variant="h1"
+          component="h1"
+          sx={{
+            fontSize: { xs: 48, md: 84 },
+            lineHeight: 0.95,
+          }}
+        >
+          Every same-screen game{' '}
+          <Box component="em" sx={{ color: 'primary.main', fontStyle: 'italic' }}>
+            on Steam
+          </Box>
+          .
+        </Typography>
+        <Typography
+          color="text.secondary"
+          sx={{
+            fontFamily: 'h1.fontFamily',
+            fontStyle: 'italic',
+            fontSize: { xs: 17, md: 19 },
+            maxWidth: 600,
+            lineHeight: 1.45,
+          }}
+        >
+          Filter by the kind of evening you&apos;re having. Sort by what people
+          are buying. The split-screen / shared-screen filter is always on.
+        </Typography>
+      </Stack>
+
+      <Box
+        sx={{
+          display: 'grid',
+          gap: { xs: 4, md: 6 },
+          gridTemplateColumns: { xs: '1fr', md: '240px 1fr' },
+          alignItems: 'flex-start',
+        }}
+      >
+        {/* Sticky sidebar — filter sections */}
+        <Box
+          component="aside"
+          sx={{
+            position: { md: 'sticky' },
+            top: { md: 96 },
+            alignSelf: 'flex-start',
+          }}
+        >
+          <FilterSection title="Mood">
             {MOODS.map((m) => (
-              <Chip
+              <FilterRow
                 key={m.value}
+                active={search.mood === m.value}
                 label={m.label}
-                color={search.mood === m.value ? 'primary' : 'default'}
-                variant={search.mood === m.value ? 'filled' : 'outlined'}
+                hint={m.hint}
                 onClick={() => {
                   updateFilter({ mood: m.value });
                 }}
               />
             ))}
-          </Stack>
-        </Box>
-
-        <Box>
-          <Typography variant="overline" color="text.secondary">
-            Sort
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }} useFlexGap>
+          </FilterSection>
+          <FilterSection title="Sort">
             {SORTS.map((s) => (
-              <Chip
+              <FilterRow
                 key={s.value}
+                active={search.sort === s.value}
                 label={s.label}
-                color={search.sort === s.value ? 'primary' : 'default'}
-                variant={search.sort === s.value ? 'filled' : 'outlined'}
+                hint={s.hint}
                 onClick={() => {
                   updateFilter({ sort: s.value });
                 }}
               />
             ))}
-          </Stack>
-        </Box>
-
-        <FormControlLabel
-          control={
-            <Switch
-              checked={search.specials}
-              onChange={(e) => {
-                updateFilter({ specials: e.target.checked });
+          </FilterSection>
+          <FilterSection title="Price">
+            <FilterRow
+              active={!search.specials}
+              label="All prices"
+              hint="Full catalog"
+              onClick={() => {
+                updateFilter({ specials: false });
               }}
             />
-          }
-          label="On sale only"
-        />
-      </Stack>
+            <FilterRow
+              active={search.specials}
+              label="On sale only"
+              hint="Discounted right now"
+              accent="#a5db5f"
+              onClick={() => {
+                updateFilter({ specials: true });
+              }}
+            />
+          </FilterSection>
+        </Box>
 
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
-        Showing {result.games.length.toLocaleString()} of{' '}
-        {result.totalCount.toLocaleString()} matching games on Steam.
-      </Typography>
+        {/* Results column */}
+        <Box sx={{ minWidth: 0 }}>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ alignItems: 'baseline', mb: 3, flexWrap: 'wrap' }}
+            useFlexGap
+          >
+            <Typography
+              variant="h5"
+              component="h2"
+              sx={{ fontSize: { xs: 22, md: 28 } }}
+            >
+              {activeMood?.label ?? 'Everything'}
+            </Typography>
+            <Typography
+              color="text.secondary"
+              sx={{
+                fontFamily: 'h1.fontFamily',
+                fontStyle: 'italic',
+                fontSize: 14,
+              }}
+            >
+              {result.games.length.toLocaleString()} of{' '}
+              {result.totalCount.toLocaleString()} games
+              {search.specials && ' · sale only'}
+            </Typography>
+          </Stack>
 
-      <Box
+          <Box
+            sx={{
+              display: 'grid',
+              gap: { xs: 2, md: 3 },
+              gridTemplateColumns: {
+                xs: 'repeat(2, 1fr)',
+                sm: 'repeat(3, 1fr)',
+                md: 'repeat(3, 1fr)',
+                lg: 'repeat(4, 1fr)',
+              },
+            }}
+          >
+            {result.games.map((game: SteamGameSummary) => (
+              <GameCard key={game.appid} game={game} layout="grid" />
+            ))}
+          </Box>
+
+          {result.games.length === 0 && (
+            <Box sx={{ py: 10, textAlign: 'center' }}>
+              <Typography
+                variant="h4"
+                sx={{ fontStyle: 'italic', color: 'text.secondary', mb: 1 }}
+              >
+                Nothing matches.
+              </Typography>
+              <Typography color="text.secondary">
+                Try a different mood, or turn off the sale filter.
+              </Typography>
+            </Box>
+          )}
+
+          {result.games.length > 0 && !reachedEnd && (
+            <Box sx={{ py: 5, textAlign: 'center' }}>
+              <Button
+                variant="outlined"
+                size="large"
+                onClick={showMore}
+                disabled={reachedMax || isLoading}
+              >
+                {reachedMax
+                  ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)} — refine filters for the rest`
+                  : isLoading
+                    ? 'Loading…'
+                    : 'Show more'}
+              </Button>
+            </Box>
+          )}
+        </Box>
+      </Box>
+    </Container>
+  );
+}
+
+interface FilterSectionProps {
+  title: string;
+  children: React.ReactNode;
+}
+
+function FilterSection({ title, children }: FilterSectionProps) {
+  return (
+    <Box sx={{ mb: 4 }}>
+      <Typography
+        variant="overline"
         sx={{
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: {
-            xs: 'repeat(2, 1fr)',
-            sm: 'repeat(3, 1fr)',
-            md: 'repeat(4, 1fr)',
-            lg: 'repeat(5, 1fr)',
-          },
+          color: 'text.secondary',
+          display: 'block',
+          mb: 1.5,
+          pb: 1,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
         }}
       >
-        {result.games.map((game: SteamGameSummary) => (
-          <GameCard key={game.appid} game={game} />
-        ))}
-      </Box>
-      {result.games.length === 0 && (
-        <Box sx={{ py: 8, textAlign: 'center' }}>
-          <Typography variant="h6">No matches.</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Try a different mood or turn off the sale filter.
-          </Typography>
-        </Box>
-      )}
-      {result.games.length > 0 && !reachedEnd && (
-        <Box sx={{ py: 4, textAlign: 'center' }}>
-          <Button
-            variant="outlined"
-            size="large"
-            onClick={showMore}
-            disabled={reachedMax || isLoading}
-          >
-            {reachedMax
-              ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)} — refine filters for the rest`
-              : isLoading
-                ? 'Loading…'
-                : 'Show more'}
-          </Button>
-        </Box>
-      )}
-    </Container>
+        {title}
+      </Typography>
+      <Stack spacing={0}>{children}</Stack>
+    </Box>
+  );
+}
+
+interface FilterRowProps {
+  active: boolean;
+  label: string;
+  hint: string;
+  accent?: string;
+  onClick: () => void;
+}
+
+function FilterRow({ active, label, hint, accent, onClick }: FilterRowProps) {
+  const activeColor = accent ?? 'var(--mui-palette-primary-main)';
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        all: 'unset',
+        cursor: 'pointer',
+        display: 'block',
+        py: 1,
+        position: 'relative',
+        pl: 2,
+        '&:focus-visible': {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: 2,
+        },
+        '&::before': {
+          content: '""',
+          position: 'absolute',
+          left: 0,
+          top: 8,
+          bottom: 8,
+          width: 2,
+          backgroundColor: active ? activeColor : 'transparent',
+          transition: 'background-color 160ms ease',
+        },
+        '&:hover .filter-label': {
+          color: active ? activeColor : 'text.primary',
+        },
+      }}
+    >
+      <Typography
+        className="filter-label"
+        sx={{
+          fontWeight: active ? 700 : 500,
+          fontSize: 15,
+          color: active ? activeColor : 'text.secondary',
+          transition: 'color 160ms ease',
+          lineHeight: 1.25,
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography
+        sx={{
+          fontFamily: 'h1.fontFamily',
+          fontStyle: 'italic',
+          fontSize: 12,
+          color: 'text.secondary',
+          opacity: 0.75,
+          mt: 0.25,
+        }}
+      >
+        {hint}
+      </Typography>
+    </Box>
   );
 }

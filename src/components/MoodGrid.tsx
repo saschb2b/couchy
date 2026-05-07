@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import CelebrationIcon from '@mui/icons-material/Celebration';
@@ -11,56 +10,97 @@ import { CardActionAreaLink } from './RouterLinks';
 
 interface Mood {
   slug: 'party' | 'brain' | 'story' | 'versus';
+  eyebrow: string;
   title: string;
   blurb: string;
+  hint: string;
   icon: ReactNode;
-  gradient: string;
+  accent: string;
 }
 
 const MOODS: Mood[] = [
   {
     slug: 'party',
-    title: 'Party chaos',
-    blurb: 'Easy to learn, loud to play. Drinks optional.',
-    icon: <CelebrationIcon fontSize="large" />,
-    gradient: 'linear-gradient(135deg, #ff7a59 0%, #ffb347 100%)',
+    eyebrow: 'A',
+    title: 'Loud & silly',
+    blurb: 'Easy to learn, impossible to play quietly.',
+    hint: '4 friends · 0 manuals',
+    icon: <CelebrationIcon sx={{ fontSize: 32 }} />,
+    accent: '#ffd166',
   },
   {
     slug: 'brain',
-    title: 'Brain & strategy',
-    blurb: 'Plot, plan, betray. The slow-burn night.',
-    icon: <PsychologyIcon fontSize="large" />,
-    gradient: 'linear-gradient(135deg, #7ad6ff 0%, #6f7eff 100%)',
+    eyebrow: 'B',
+    title: 'Plot, plan, betray',
+    blurb: 'For the night someone insists on reading the rulebook.',
+    hint: '3–4 schemers',
+    icon: <PsychologyIcon sx={{ fontSize: 32 }} />,
+    accent: '#7ad6ff',
   },
   {
     slug: 'story',
-    title: 'Co-op story',
-    blurb: 'Tackle a campaign side-by-side.',
-    icon: <AutoStoriesIcon fontSize="large" />,
-    gradient: 'linear-gradient(135deg, #6fffba 0%, #2bb673 100%)',
+    eyebrow: 'C',
+    title: 'Side-by-side',
+    blurb: 'A campaign to share. Save one mid-credits slot for snacks.',
+    hint: '2 players · long evening',
+    icon: <AutoStoriesIcon sx={{ fontSize: 32 }} />,
+    accent: '#a5db5f',
   },
   {
     slug: 'versus',
-    title: 'Versus & brawlers',
-    blurb: 'Settle the rivalry, one round at a time.',
-    icon: <SportsKabaddiIcon fontSize="large" />,
-    gradient: 'linear-gradient(135deg, #ff7eb3 0%, #b86bff 100%)',
+    eyebrow: 'D',
+    title: 'Settle a grudge',
+    blurb: 'Fighters, sports, party brawls — somebody has to lose.',
+    hint: '2–4 rivals',
+    icon: <SportsKabaddiIcon sx={{ fontSize: 32 }} />,
+    accent: '#e0533c',
   },
 ];
 
 export function MoodGrid() {
   return (
-    <Box sx={{ mb: 6 }}>
-      <Typography variant="h5" component="h2" sx={{ fontWeight: 800, mb: 1 }}>
-        What kind of night is it?
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Pick a vibe and we'll narrow the catalog.
-      </Typography>
+    <Box component="section" sx={{ mb: { xs: 8, md: 12 } }}>
+      <Stack
+        direction={{ xs: 'column', md: 'row' }}
+        spacing={{ xs: 2, md: 6 }}
+        sx={{ mb: { xs: 4, md: 6 }, alignItems: { md: 'flex-end' } }}
+      >
+        <Box sx={{ flex: 1 }}>
+          <Typography
+            variant="overline"
+            sx={{ color: 'primary.main', display: 'block', mb: 1 }}
+          >
+            Pick a vibe — we&apos;ll narrow it down
+          </Typography>
+          <Typography
+            variant="h2"
+            sx={{
+              fontSize: { xs: 40, md: 64 },
+              maxWidth: '14ch',
+            }}
+          >
+            What kind of <Box component="em" sx={{ fontStyle: 'italic', color: 'primary.main' }}>night</Box> is it?
+          </Typography>
+        </Box>
+        <Typography
+          color="text.secondary"
+          sx={{
+            fontFamily: 'h1.fontFamily',
+            fontStyle: 'italic',
+            fontSize: { xs: 16, md: 18 },
+            maxWidth: 360,
+            lineHeight: 1.4,
+          }}
+        >
+          Four moods, four short lists. Click the one that matches the
+          energy at the door and skip the doomscroll.
+        </Typography>
+      </Stack>
+
       <Box
         sx={{
           display: 'grid',
-          gap: 2,
+          gap: { xs: 1.5, md: 2 },
           gridTemplateColumns: {
             xs: 'repeat(1, 1fr)',
             sm: 'repeat(2, 1fr)',
@@ -69,40 +109,109 @@ export function MoodGrid() {
         }}
       >
         {MOODS.map((mood) => (
-          <Card
+          <Box
             key={mood.slug}
             sx={{
               position: 'relative',
-              overflow: 'hidden',
               border: '1px solid',
               borderColor: 'divider',
+              backgroundColor: 'background.paper',
+              transition: 'border-color 200ms ease, transform 200ms ease',
+              '&:hover': {
+                borderColor: mood.accent,
+                transform: 'translateY(-2px)',
+              },
+              '&:hover .mood-rule': {
+                width: '100%',
+                background: mood.accent,
+              },
             }}
           >
             <CardActionAreaLink
               to="/browse"
-              search={{ mood: mood.slug, sort: 'topsellers', specials: false, pageCount: 1 }}
-              sx={{ p: 3, minHeight: 160 }}
+              search={{
+                mood: mood.slug,
+                sort: 'topsellers',
+                specials: false,
+                pageCount: 1,
+              }}
+              sx={{
+                display: 'block',
+                p: { xs: 3, md: 4 },
+                minHeight: { xs: 200, md: 280 },
+                position: 'relative',
+                color: 'inherit',
+              }}
             >
-              <Box
-                aria-hidden
+              <Stack
+                spacing={0}
                 sx={{
-                  position: 'absolute',
-                  inset: 0,
-                  background: mood.gradient,
-                  opacity: 0.18,
+                  height: '100%',
+                  justifyContent: 'space-between',
+                  position: 'relative',
                 }}
-              />
-              <Stack spacing={1.5} sx={{ position: 'relative' }}>
-                <Box sx={{ color: 'primary.main' }}>{mood.icon}</Box>
-                <Typography variant="h6" component="span" sx={{ fontWeight: 700 }}>
-                  {mood.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {mood.blurb}
-                </Typography>
+              >
+                <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', mb: 4 }}>
+                  <Typography
+                    sx={{
+                      fontFamily: 'h1.fontFamily',
+                      fontWeight: 600,
+                      fontStyle: 'italic',
+                      fontSize: 18,
+                      color: mood.accent,
+                      lineHeight: 1,
+                      mt: 0.5,
+                    }}
+                  >
+                    {mood.eyebrow}
+                  </Typography>
+                  <Box sx={{ color: mood.accent, opacity: 0.8 }}>{mood.icon}</Box>
+                </Stack>
+
+                <Box>
+                  <Typography
+                    variant="h4"
+                    component="span"
+                    sx={{
+                      display: 'block',
+                      mb: 1.5,
+                      fontSize: { xs: 26, md: 30 },
+                      lineHeight: 1.05,
+                    }}
+                  >
+                    {mood.title}
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{
+                      fontSize: 14,
+                      mb: 2,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {mood.blurb}
+                  </Typography>
+                  <Box
+                    className="mood-rule"
+                    sx={{
+                      width: 40,
+                      height: 1,
+                      background: 'rgba(245, 237, 224, 0.18)',
+                      mb: 1.5,
+                      transition: 'width 280ms ease, background 280ms ease',
+                    }}
+                  />
+                  <Typography
+                    variant="overline"
+                    color="text.secondary"
+                    sx={{ display: 'block', fontSize: 10 }}
+                  >
+                    {mood.hint}
+                  </Typography>
+                </Box>
               </Stack>
             </CardActionAreaLink>
-          </Card>
+          </Box>
         ))}
       </Box>
     </Box>
