@@ -3,6 +3,7 @@ import { getAppDetails, searchSteam } from './steam/client';
 import { STEAM_CATEGORY } from './steam/categories';
 import type { SteamSort } from './steam/categories';
 import type { SteamAppDetails, SteamGameSummary, SteamSearchPage } from './steam/types';
+import { resolveEditorsPicks } from './steam/editorsPicks';
 
 const VALID_SORTS = new Set<SteamSort>([
   'topsellers',
@@ -27,7 +28,8 @@ export interface DiscoveryRail {
   title: string;
   subtitle: string;
   games: SteamGameSummary[];
-  steamSearchUrl: string;
+  /** When omitted, the rail won't render a "See all on Steam" link. */
+  steamSearchUrl?: string;
 }
 
 function buildSteamSearchUrl(
@@ -140,82 +142,149 @@ export const fetchAppDetails = createServerFn({ method: 'GET' })
     return getAppDetails(data.appid);
   });
 
+/**
+ * Fetch the same query across multiple pages and return a single deduped list.
+ * Each page is independently cached by `searchSteam`, so a refresh after a
+ * "show more" only hits Steam for new pages.
+ */
+async function searchPaged(
+  opts: Parameters<typeof searchSteam>[0],
+  pageCount: number,
+): Promise<SteamGameSummary[]> {
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_unused, page) =>
+      searchSteam({ ...opts, page }),
+    ),
+  );
+  const seen = new Set<number>();
+  const games: SteamGameSummary[] = [];
+  for (const p of pages) {
+    for (const g of p.games) {
+      if (seen.has(g.appid)) continue;
+      seen.add(g.appid);
+      games.push(g);
+    }
+  }
+  return games;
+}
+
+const RAIL_LIMIT = 14;
+const MIN_RAIL_SIZE = 6;
+const CANDIDATE_PAGES = 2;
+
 export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
   async (): Promise<DiscoveryRail[]> => {
     const couch = STEAM_CATEGORY.sharedSplitScreen;
     const couchCoop = STEAM_CATEGORY.sharedSplitScreenCoop;
     const couchVersus = STEAM_CATEGORY.sharedSplitScreenPvp;
 
-    const requests = [
-      {
-        key: 'top-sellers',
-        title: 'Crowd-pleasers',
-        subtitle:
-          "Popular and hard to mess up. Start here when nobody can agree on anything.",
-        categoryIds: [couch],
-        sort: 'topsellers' as SteamSort,
-      },
-      {
-        key: 'new-releases',
-        title: 'New this season',
-        subtitle:
-          'Recently released. Worth a look before everyone has played them.',
-        categoryIds: [couch],
-        sort: 'newreleases' as SteamSort,
-      },
-      {
-        key: 'co-op-adventures',
-        title: 'Co-op campaigns',
-        subtitle: "Story games you play through together.",
-        categoryIds: [couchCoop],
-        sort: 'topsellers' as SteamSort,
-      },
-      {
-        key: 'versus-brawlers',
-        title: 'Versus',
-        subtitle: 'Brawlers and party fighters. Somebody has to lose.',
-        categoryIds: [couchVersus],
-        sort: 'topsellers' as SteamSort,
-      },
-      {
-        key: 'on-sale',
-        title: 'On sale today',
-        subtitle: 'Discounted on Steam right now.',
-        categoryIds: [couch],
-        sort: 'topsellers' as SteamSort,
-        specials: true,
-      },
-    ];
-
-    const results = await Promise.allSettled(
-      requests.map(async (req) => {
-        const extra: Record<string, string> = {};
-        if (req.specials === true) {
-          extra.specials = '1';
-        }
-        const page = await searchSteam({
-          categoryIds: req.categoryIds,
-          sort: req.sort,
-          ...(Object.keys(extra).length > 0 && { extra }),
-        });
-        return { req, page };
-      }),
+    // Fetch a wide candidate pool from each source in parallel. 2 pages × 25
+    // ≈ 50 candidates each — plenty of slack for cross-rail dedup.
+    const settled = await Promise.allSettled([
+      searchPaged({ categoryIds: [couch], sort: 'topsellers' }, CANDIDATE_PAGES),
+      searchPaged({ categoryIds: [couchCoop], sort: 'topsellers' }, CANDIDATE_PAGES),
+      searchPaged({ categoryIds: [couchVersus], sort: 'topsellers' }, CANDIDATE_PAGES),
+      searchPaged({ categoryIds: [couch], sort: 'newreleases' }, CANDIDATE_PAGES),
+      searchPaged(
+        { categoryIds: [couch], sort: 'topsellers', extra: { specials: '1' } },
+        CANDIDATE_PAGES,
+      ),
+    ]);
+    const pools = settled.map((s) =>
+      s.status === 'fulfilled' ? s.value : ([] as SteamGameSummary[]),
     );
+    const crowdPool = pools[0] ?? [];
+    const coopPool = pools[1] ?? [];
+    const versusPool = pools[2] ?? [];
+    const newPool = pools[3] ?? [];
+    const salePool = pools[4] ?? [];
+
+    // Build appid → first-seen-summary map across every pool. Used so the
+    // editor's picks rail can avoid an extra appdetails round-trip when a
+    // pick is already in one of the search pools (Stardew, Brawlhalla, etc.
+    // almost always are).
+    const allCandidates = new Map<number, SteamGameSummary>();
+    for (const pool of [crowdPool, coopPool, versusPool, newPool, salePool]) {
+      for (const g of pool) {
+        if (!allCandidates.has(g.appid)) allCandidates.set(g.appid, g);
+      }
+    }
+
+    const editorsPicks = await resolveEditorsPicks(allCandidates);
+
+    // Cross-rail dedup. Rails take in priority order; a game shown in an
+    // earlier rail is removed from later candidate lists.
+    const used = new Set<number>();
+    const take = (
+      candidates: SteamGameSummary[],
+      limit = RAIL_LIMIT,
+    ): SteamGameSummary[] => {
+      const out: SteamGameSummary[] = [];
+      for (const g of candidates) {
+        if (used.has(g.appid)) continue;
+        used.add(g.appid);
+        out.push(g);
+        if (out.length >= limit) break;
+      }
+      return out;
+    };
 
     const rails: DiscoveryRail[] = [];
-    for (const result of results) {
-      if (result.status !== 'fulfilled') {
-        continue;
-      }
-      const { req, page } = result.value;
+
+    if (editorsPicks.length >= 4) {
+      const games = take(editorsPicks, editorsPicks.length);
       rails.push({
-        key: req.key,
-        title: req.title,
-        subtitle: req.subtitle,
-        games: page.games.slice(0, 14),
-        steamSearchUrl: buildSteamSearchUrl(req.categoryIds, req.sort, req.specials),
+        key: 'editors-picks',
+        title: 'Couch night staples',
+        subtitle: 'A handful we keep coming back to.',
+        games,
       });
     }
-    return rails;
+
+    rails.push({
+      key: 'top-sellers',
+      title: 'Crowd-pleasers',
+      subtitle:
+        "Popular and hard to mess up. Start here when nobody can agree on anything.",
+      games: take(crowdPool),
+      steamSearchUrl: buildSteamSearchUrl([couch], 'topsellers'),
+    });
+
+    rails.push({
+      key: 'co-op-adventures',
+      title: 'Co-op campaigns',
+      subtitle: 'Story games you play through together.',
+      games: take(coopPool),
+      steamSearchUrl: buildSteamSearchUrl([couchCoop], 'topsellers'),
+    });
+
+    rails.push({
+      key: 'versus-brawlers',
+      title: 'Versus',
+      subtitle: 'Brawlers and party fighters. Somebody has to lose.',
+      games: take(versusPool),
+      steamSearchUrl: buildSteamSearchUrl([couchVersus], 'topsellers'),
+    });
+
+    rails.push({
+      key: 'new-releases',
+      title: 'New this season',
+      subtitle:
+        'Recently released. Worth a look before everyone has played them.',
+      games: take(newPool),
+      steamSearchUrl: buildSteamSearchUrl([couch], 'newreleases'),
+    });
+
+    rails.push({
+      key: 'on-sale',
+      title: 'On sale today',
+      subtitle: 'Discounted on Steam right now.',
+      games: take(salePool),
+      steamSearchUrl: buildSteamSearchUrl([couch], 'topsellers', true),
+    });
+
+    // Drop rails that ended up too thin after dedup — better to omit than
+    // to render a 2-card row.
+    return rails.filter((r) => r.games.length >= MIN_RAIL_SIZE);
   },
 );

@@ -55,7 +55,9 @@ function DiscoveryPage() {
             title={rail.title}
             subtitle={rail.subtitle}
             games={rail.games}
-            steamSearchUrl={rail.steamSearchUrl}
+            {...(rail.steamSearchUrl !== undefined && {
+              steamSearchUrl: rail.steamSearchUrl,
+            })}
           />
         ))}
       </Container>
