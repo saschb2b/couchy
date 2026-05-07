@@ -125,6 +125,13 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
           )}
         </Box>
 
+        {/*
+          Fixed three-row meta block. Every row has a deterministic height and
+          everything is `nowrap` + ellipsis-truncated, so cards never resize
+          based on which optional fields a particular game has. Without this,
+          a long sale price + a long date string fights for room and the date
+          wraps onto two or three lines, stretching the grid row.
+        */}
         <Stack spacing={0.5} sx={{ pt: 1.5, px: 0.25 }}>
           <Typography
             className="game-card-title"
@@ -132,6 +139,7 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
               fontWeight: 600,
               fontSize: 15,
               lineHeight: 1.25,
+              height: '1.25em',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
@@ -144,8 +152,13 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
 
           <Stack
             direction="row"
-            spacing={1}
-            sx={{ alignItems: 'center', minHeight: 22 }}
+            spacing={0.75}
+            sx={{
+              alignItems: 'center',
+              height: 16,
+              overflow: 'hidden',
+              minWidth: 0,
+            }}
           >
             {reviewMeta !== null && (
               <Typography
@@ -155,36 +168,45 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
                   fontWeight: 600,
                   fontSize: 11,
                   letterSpacing: '0.02em',
+                  whiteSpace: 'nowrap',
+                  flex: '0 0 auto',
                 }}
               >
                 {reviewMeta.label.toUpperCase()}
               </Typography>
             )}
-            {game.releasedAt !== null && (
-              <>
-                {reviewMeta !== null && (
-                  <Box
-                    sx={{
-                      width: 2,
-                      height: 2,
-                      borderRadius: '50%',
-                      backgroundColor: 'text.secondary',
-                      opacity: 0.6,
-                    }}
-                  />
-                )}
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ fontSize: 11 }}
-                >
-                  {game.releasedAt}
-                </Typography>
-              </>
+            {reviewMeta !== null && game.releasedAt !== null && (
+              <Box
+                sx={{
+                  width: 2,
+                  height: 2,
+                  borderRadius: '50%',
+                  backgroundColor: 'text.secondary',
+                  opacity: 0.6,
+                  flex: '0 0 auto',
+                }}
+              />
             )}
-            <Box sx={{ flex: 1 }} />
-            <PriceLine game={game} />
+            {game.releasedAt !== null && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{
+                  fontSize: 11,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  minWidth: 0,
+                }}
+              >
+                {game.releasedAt}
+              </Typography>
+            )}
           </Stack>
+
+          <Box sx={{ height: 20, display: 'flex', alignItems: 'center' }}>
+            <PriceLine game={game} />
+          </Box>
         </Stack>
       </CardActionAreaLink>
     </Box>
@@ -201,7 +223,11 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
 
   if (game.discountPercent > 0) {
     return (
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: 'baseline', minWidth: 0, overflow: 'hidden' }}
+      >
         {game.originalPriceDisplay !== null && (
           <Typography
             sx={{
@@ -209,6 +235,8 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
               textDecoration: 'line-through',
               fontSize: 11,
               opacity: 0.7,
+              whiteSpace: 'nowrap',
+              flex: '0 0 auto',
             }}
           >
             {game.originalPriceDisplay}
@@ -219,6 +247,8 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
             color: SALE_GREEN,
             fontWeight: 700,
             fontSize: 13,
+            whiteSpace: 'nowrap',
+            flex: '0 0 auto',
           }}
         >
           {final}
@@ -228,7 +258,9 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
   }
 
   return (
-    <Typography sx={{ fontWeight: 600, fontSize: 13 }}>{final}</Typography>
+    <Typography sx={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
+      {final}
+    </Typography>
   );
 }
 
