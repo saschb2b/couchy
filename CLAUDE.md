@@ -120,6 +120,16 @@ built by a chatbot".
   Collectibles"**, not Split-Screen PvP — getting that wrong leaks Superhot VR
   into the couch versus rail. The verified ids live in
   `src/server/steam/categories.ts`; don't introduce literals elsewhere.
+- **Couch filter is `category3=24` and that's deliberate.** Empirically
+  verified across ~30 canonical couch titles: cat 24 catches the strong
+  majority correctly and excludes online-only games (Helldivers 2, Among Us,
+  Lethal Company) cleanly. A handful of well-known couch games are *missing*
+  cat 24 because their developers didn't tag it (Nidhogg 2, Magicka,
+  Speedrunners, the Worms series). Community tag 3841 ("Local Co-Op") gives
+  roughly equivalent coverage, so switching wouldn't help. The editorial
+  allowlist in `src/server/steam/editorsPicks.ts` is how we surface those
+  gaps. Don't broaden the search filter to include cat 9 (Co-op) — that's
+  the slippery slope that pulls in online-only games.
 - **The non-game denylist** lives in `src/server/steam/parseSearchHtml.ts`.
   Subscriptions like EA Play and companion products like "Friend's Pass" /
   "Soundtrack" / "Demo" report `type: "game"` from `appdetails` so we filter

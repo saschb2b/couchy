@@ -8,6 +8,17 @@ import type { SteamAppDetails, SteamGameSummary } from './types';
  * loses its Shared/Split Screen tag, drop it. Add new entries deliberately,
  * not because they're trending.
  *
+ * A note on filtering strategy. The discovery rails filter on Steam's
+ * dev-set Shared/Split Screen category (id 24). Empirically that catches
+ * ~90% of canonical couch games — but Steam's metadata is incomplete and
+ * some well-known couch games are missing the tag (Nidhogg 2, Magicka,
+ * Speedrunners, Worms). Switching to community tag 3841 ("Local Co-Op")
+ * gives roughly equivalent coverage and doesn't help. The editorial
+ * allowlist below is how we surface the gaps — picks bypass the category
+ * filter entirely. Before adding a new entry, verify it's genuinely
+ * couch-playable; before removing one, sanity-check the metadata hasn't
+ * just temporarily slipped.
+ *
  * Review the list once a quarter.
  */
 interface EditorsPick {
@@ -25,6 +36,13 @@ const PICKS: readonly EditorsPick[] = [
   { appid: 268910, name: 'Cuphead' },
   { appid: 204360, name: 'Castle Crashers' },
   { appid: 1222700, name: 'A Way Out' },
+  { appid: 252110, name: 'Lovers in a Dangerous Spacetime' },
+  { appid: 35720, name: 'Trine 2: Complete Story' },
+  // Below this line: cat 24 false negatives. Genuinely playable on one
+  // couch but not flagged as such by their developers, so they wouldn't
+  // appear in our category-filtered rails without this allowlist.
+  { appid: 535520, name: 'Nidhogg 2' },
+  { appid: 207140, name: 'SpeedRunners' },
 ];
 
 export function editorsPickAppids(): readonly number[] {
