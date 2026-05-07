@@ -25,9 +25,9 @@ const MAX_PAGE_COUNT = 8;
 const MOODS: { value: Mood; label: string; hint: string }[] = [
   { value: 'all', label: 'Everything', hint: 'All same-screen games' },
   { value: 'party', label: 'Loud & silly', hint: 'Party-friendly' },
-  { value: 'brain', label: 'Plot, plan, betray', hint: 'Strategy & co-op planning' },
-  { value: 'story', label: 'Side-by-side', hint: 'Story campaigns' },
-  { value: 'versus', label: 'Settle a grudge', hint: 'Versus & brawlers' },
+  { value: 'brain', label: 'Plan & betray', hint: 'Strategy & co-op planning' },
+  { value: 'story', label: 'Co-op story', hint: 'Story campaigns' },
+  { value: 'versus', label: 'Versus', hint: 'Versus & brawlers' },
 ];
 
 const SORTS: { value: SteamSort; label: string; hint: string }[] = [
@@ -127,12 +127,11 @@ function BrowsePage() {
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
-      {/* Editorial header */}
       <Stack spacing={2} sx={{ mb: { xs: 5, md: 8 }, maxWidth: 920 }}>
         <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
           <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
           <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
-            The catalog · filtered
+            The catalog
           </Typography>
         </Stack>
         <Typography
@@ -143,11 +142,7 @@ function BrowsePage() {
             lineHeight: 0.95,
           }}
         >
-          Every same-screen game{' '}
-          <Box component="em" sx={{ color: 'primary.main', fontStyle: 'italic' }}>
-            on Steam
-          </Box>
-          .
+          Every same-screen game on Steam.
         </Typography>
         <Typography
           color="text.secondary"
@@ -159,8 +154,8 @@ function BrowsePage() {
             lineHeight: 1.45,
           }}
         >
-          Filter by the kind of evening you&apos;re having. Sort by what people
-          are buying. The split-screen / shared-screen filter is always on.
+          Filter by the kind of evening you&apos;re having. Same-screen and
+          split-screen are always on.
         </Typography>
       </Stack>
 
@@ -297,9 +292,9 @@ function BrowsePage() {
                 disabled={reachedMax || isLoading}
               >
                 {reachedMax
-                  ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)} — refine filters for the rest`
+                  ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)}. Refine filters for the rest.`
                   : isLoading
-                    ? 'Loading…'
+                    ? 'Loading'
                     : 'Show more'}
               </Button>
             </Box>

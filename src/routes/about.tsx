@@ -24,26 +24,22 @@ function AboutPage() {
           component="h1"
           sx={{ fontSize: { xs: 56, md: 96 }, lineHeight: 0.95 }}
         >
-          About{' '}
-          <Box component="em" sx={{ color: 'primary.main', fontStyle: 'italic' }}>
-            Couchy
-          </Box>
-          .
+          About Couchy.
         </Typography>
       </Stack>
 
       <Stack spacing={5}>
         <Section
           eyebrow="The premise"
-          body="Couchy is a small, opinionated guide to playing video games with the people in your living room. When friends are over and someone asks 'what should we play?' — you shouldn't have to scroll the Steam store and YouTube reviews for an hour. Pick a vibe, browse a rail, click through to Steam."
+          body="Couchy is a guide to playing video games with the people in your living room. When friends are over and someone asks 'what should we play?', you shouldn't have to scroll the Steam store and YouTube reviews for an hour. Pick a vibe, browse a rail, click through to Steam."
         />
         <Section
           eyebrow="What you're seeing"
-          body="Game art, prices, screenshots, and review summaries are pulled live from Steam's storefront. Couchy filters strictly on Steam's official Shared/Split Screen, Co-op, and PvP categories so every game listed here is genuinely playable on one couch with one screen."
+          body="Game art, prices, screenshots, and review summaries are pulled live from Steam's storefront. Couchy filters strictly on Steam's official Shared/Split Screen, Co-op, and PvP categories, so every game listed here is genuinely playable on one couch with one screen."
         />
         <Section
           eyebrow="Not affiliated"
-          body="Couchy is a fan project. Steam, Valve, and the Steam logo are trademarks of Valve Corp. Game artwork and metadata are © their respective publishers. Clicking 'Open on Steam' takes you straight to the official store page — we don't sell anything ourselves."
+          body="Couchy is a fan project. Steam, Valve, and the Steam logo are trademarks of Valve Corp. Game artwork and metadata are © their respective publishers. Clicking 'Open on Steam' takes you straight to the official store page. We don't sell anything ourselves."
         />
         <Box>
           <Typography

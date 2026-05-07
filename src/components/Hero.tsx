@@ -88,7 +88,7 @@ export function Hero({ spotlight }: HeroProps) {
                 fontWeight: 700,
               }}
             >
-              Tonight&apos;s pick — couch co-op &amp; same-screen
+              Tonight on Steam
             </Typography>
           </Stack>
 
@@ -121,8 +121,8 @@ export function Hero({ spotlight }: HeroProps) {
               lineHeight: 1.4,
             }}
           >
-            A short, opinionated list of games worth firing up when friends
-            are over and the controllers are already on the table.
+            Games worth firing up when friends are over and the controllers
+            are already on the table.
           </Typography>
 
           {spotlight !== null && (

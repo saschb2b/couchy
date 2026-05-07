@@ -149,41 +149,38 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
     const requests = [
       {
         key: 'top-sellers',
-        title: 'The crowd-pleasers',
+        title: 'Crowd-pleasers',
         subtitle:
-          'Loud, popular, hard to mess up. Start here when nobody can agree.',
+          "Popular and hard to mess up. Start here when nobody can agree on anything.",
         categoryIds: [couch],
         sort: 'topsellers' as SteamSort,
       },
       {
         key: 'new-releases',
-        title: 'Fresh off the disc',
+        title: 'New this season',
         subtitle:
-          'Recently released. Still warm. Worth a look before everyone has played them.',
+          'Recently released. Worth a look before everyone has played them.',
         categoryIds: [couch],
         sort: 'newreleases' as SteamSort,
       },
       {
         key: 'co-op-adventures',
-        title: 'Side-by-side adventures',
-        subtitle:
-          'A campaign you tackle together. The kind that ends with a hug or a fight.',
+        title: 'Co-op campaigns',
+        subtitle: "Story games you play through together.",
         categoryIds: [couchCoop],
         sort: 'topsellers' as SteamSort,
       },
       {
         key: 'versus-brawlers',
-        title: 'Settle it on the rug',
-        subtitle:
-          'Brawlers, sports, party fighters — for when somebody needs to lose.',
+        title: 'Versus',
+        subtitle: 'Brawlers and party fighters. Somebody has to lose.',
         categoryIds: [couchVersus],
         sort: 'topsellers' as SteamSort,
       },
       {
         key: 'on-sale',
-        title: 'On sale, in season',
-        subtitle:
-          'Steam is discounting these right now. Buy before the next round of regret.',
+        title: 'On sale today',
+        subtitle: 'Discounted on Steam right now.',
         categoryIds: [couch],
         sort: 'topsellers' as SteamSort,
         specials: true,

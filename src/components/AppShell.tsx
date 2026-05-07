@@ -31,7 +31,7 @@ export function AppShell({ children }: AppShellProps) {
             <Link
               to="/"
               style={{ textDecoration: 'none', color: 'inherit' }}
-              aria-label="Couchy — home"
+              aria-label="Couchy, home"
             >
               <Stack direction="row" spacing={1.5} sx={{ alignItems: 'baseline' }}>
                 <Typography
@@ -139,8 +139,8 @@ export function AppShell({ children }: AppShellProps) {
                   lineHeight: 1.4,
                 }}
               >
-                A small, opinionated guide to playing video games with the
-                people in your living room.
+                A guide to playing video games with the people in your
+                living room.
               </Typography>
             </Box>
             <Stack spacing={1} sx={{ alignItems: { md: 'flex-end' } }}>

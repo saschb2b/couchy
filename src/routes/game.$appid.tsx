@@ -118,7 +118,7 @@ function GameDetailPage() {
                 {data.publishers !== undefined &&
                   data.publishers.length > 0 &&
                   data.publishers.join(', ') !== data.developers.join(', ') &&
-                  ` — published by ${data.publishers.join(', ')}`}
+                  `. Published by ${data.publishers.join(', ')}.`}
               </Typography>
             )}
           </Stack>

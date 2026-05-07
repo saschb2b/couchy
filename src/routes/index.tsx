@@ -34,7 +34,7 @@ function DiscoveryPage() {
               variant="h3"
               sx={{ fontStyle: 'italic', mb: 1 }}
             >
-              Steam went quiet.
+              Steam isn&apos;t picking up.
             </Typography>
             <Typography
               color="text.secondary"
@@ -45,15 +45,13 @@ function DiscoveryPage() {
                 maxWidth: 520,
               }}
             >
-              Couchy proxies the Steam Store and might be hitting their rate
-              limit. Try again in a minute.
+              Probably a rate-limit blip on our end. Try again in a minute.
             </Typography>
           </Box>
         )}
-        {rails.map((rail: DiscoveryRail, idx: number) => (
+        {rails.map((rail: DiscoveryRail) => (
           <GameRail
             key={rail.key}
-            index={idx + 1}
             title={rail.title}
             subtitle={rail.subtitle}
             games={rail.games}
@@ -77,7 +75,7 @@ function DiscoveryPendingState() {
           maxWidth: '14ch',
         }}
       >
-        Talking to Steam…
+        One second.
       </Typography>
       <Typography
         color="text.secondary"
@@ -88,7 +86,7 @@ function DiscoveryPendingState() {
           maxWidth: 480,
         }}
       >
-        Pulling tonight&apos;s couch picks. Usually one second.
+        Pulling tonight&apos;s picks from Steam.
       </Typography>
     </Container>
   );
@@ -106,7 +104,7 @@ function DiscoveryErrorState({ error }: { error: Error }) {
           maxWidth: '14ch',
         }}
       >
-        Steam ghosted us.
+        Steam isn&apos;t picking up.
       </Typography>
       <Typography
         color="text.secondary"
@@ -118,8 +116,7 @@ function DiscoveryErrorState({ error }: { error: Error }) {
           maxWidth: 520,
         }}
       >
-        We proxy everything through the Steam Store, so this is usually
-        a rate-limit blip. Try again in a minute.
+        Probably a rate-limit blip on our end. Try again in a minute.
       </Typography>
       <Typography variant="caption" color="text.secondary">
         {error.message}

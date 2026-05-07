@@ -11,15 +11,13 @@ import { GameCard } from './GameCard';
 import type { SteamGameSummary } from '../server/steam/types';
 
 interface GameRailProps {
-  /** 1-based rail index, used for the editorial rank label. */
-  index: number;
   title: string;
   subtitle?: string;
   games: SteamGameSummary[];
   steamSearchUrl?: string;
 }
 
-export function GameRail({ index, title, subtitle, games, steamSearchUrl }: GameRailProps) {
+export function GameRail({ title, subtitle, games, steamSearchUrl }: GameRailProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const scroll = (dir: 1 | -1) => {
@@ -46,24 +44,6 @@ export function GameRail({ index, title, subtitle, games, steamSearchUrl }: Game
         spacing={{ xs: 1.5, md: 4 }}
         sx={{ mb: 3, alignItems: { md: 'flex-end' } }}
       >
-        {/* Rank label — numbered like a magazine feature. */}
-        <Typography
-          aria-hidden
-          sx={{
-            fontFamily: 'h1.fontFamily',
-            fontWeight: 800,
-            lineHeight: 0.9,
-            fontSize: { xs: 56, md: 96 },
-            letterSpacing: '-0.05em',
-            color: 'transparent',
-            WebkitTextStroke: '1px rgba(245, 237, 224, 0.18)',
-            flex: '0 0 auto',
-            minWidth: { md: 110 },
-          }}
-        >
-          {String(index).padStart(2, '0')}
-        </Typography>
-
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography
             variant="h3"

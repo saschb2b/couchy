@@ -10,7 +10,6 @@ import { CardActionAreaLink } from './RouterLinks';
 
 interface Mood {
   slug: 'party' | 'brain' | 'story' | 'versus';
-  eyebrow: string;
   title: string;
   blurb: string;
   hint: string;
@@ -21,37 +20,33 @@ interface Mood {
 const MOODS: Mood[] = [
   {
     slug: 'party',
-    eyebrow: 'A',
     title: 'Loud & silly',
     blurb: 'Easy to learn, impossible to play quietly.',
-    hint: '4 friends · 0 manuals',
+    hint: 'Party-friendly',
     icon: <CelebrationIcon sx={{ fontSize: 32 }} />,
     accent: '#ffd166',
   },
   {
     slug: 'brain',
-    eyebrow: 'B',
-    title: 'Plot, plan, betray',
-    blurb: 'For the night someone insists on reading the rulebook.',
-    hint: '3–4 schemers',
+    title: 'Plan & betray',
+    blurb: 'For nights where someone insists on reading the rulebook.',
+    hint: 'Strategy & co-op planning',
     icon: <PsychologyIcon sx={{ fontSize: 32 }} />,
     accent: '#7ad6ff',
   },
   {
     slug: 'story',
-    eyebrow: 'C',
-    title: 'Side-by-side',
-    blurb: 'A campaign to share. Save one mid-credits slot for snacks.',
-    hint: '2 players · long evening',
+    title: 'Co-op story',
+    blurb: 'A campaign you play through together.',
+    hint: 'Story campaigns',
     icon: <AutoStoriesIcon sx={{ fontSize: 32 }} />,
     accent: '#a5db5f',
   },
   {
     slug: 'versus',
-    eyebrow: 'D',
-    title: 'Settle a grudge',
-    blurb: 'Fighters, sports, party brawls — somebody has to lose.',
-    hint: '2–4 rivals',
+    title: 'Versus',
+    blurb: 'Brawlers and party fighters. Somebody has to lose.',
+    hint: 'Versus & brawlers',
     icon: <SportsKabaddiIcon sx={{ fontSize: 32 }} />,
     accent: '#e0533c',
   },
@@ -70,7 +65,7 @@ export function MoodGrid() {
             variant="overline"
             sx={{ color: 'primary.main', display: 'block', mb: 1 }}
           >
-            Pick a vibe — we&apos;ll narrow it down
+            By mood
           </Typography>
           <Typography
             variant="h2"
@@ -79,7 +74,7 @@ export function MoodGrid() {
               maxWidth: '14ch',
             }}
           >
-            What kind of <Box component="em" sx={{ fontStyle: 'italic', color: 'primary.main' }}>night</Box> is it?
+            What kind of night is it?
           </Typography>
         </Box>
         <Typography
@@ -88,12 +83,11 @@ export function MoodGrid() {
             fontFamily: 'h1.fontFamily',
             fontStyle: 'italic',
             fontSize: { xs: 16, md: 18 },
-            maxWidth: 360,
+            maxWidth: 340,
             lineHeight: 1.4,
           }}
         >
-          Four moods, four short lists. Click the one that matches the
-          energy at the door and skip the doomscroll.
+          Four short lists, sorted by the energy at the door.
         </Typography>
       </Stack>
 
@@ -151,22 +145,9 @@ export function MoodGrid() {
                   position: 'relative',
                 }}
               >
-                <Stack direction="row" spacing={2} sx={{ alignItems: 'flex-start', mb: 4 }}>
-                  <Typography
-                    sx={{
-                      fontFamily: 'h1.fontFamily',
-                      fontWeight: 600,
-                      fontStyle: 'italic',
-                      fontSize: 18,
-                      color: mood.accent,
-                      lineHeight: 1,
-                      mt: 0.5,
-                    }}
-                  >
-                    {mood.eyebrow}
-                  </Typography>
-                  <Box sx={{ color: mood.accent, opacity: 0.8 }}>{mood.icon}</Box>
-                </Stack>
+                <Box sx={{ color: mood.accent, opacity: 0.85, mb: 4 }}>
+                  {mood.icon}
+                </Box>
 
                 <Box>
                   <Typography
