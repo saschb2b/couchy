@@ -5,9 +5,13 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import ZoomOutMapIcon from '@mui/icons-material/ZoomOutMap';
+import { useState } from 'react';
 import { fetchAppDetails } from '../server/fns';
 import { COUCH_CATEGORY_IDS } from '../server/steam/categories';
 import type { SteamAppDetails } from '../server/steam/types';
+import { Lightbox } from '../components/Lightbox';
+import type { LightboxImage } from '../components/Lightbox';
 
 export const Route = createFileRoute('/game/$appid')({
   loader: async ({ params }) => {
@@ -28,6 +32,8 @@ function libraryHeroUrl(appid: number): string {
 
 function GameDetailPage() {
   const { data } = Route.useLoaderData();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const screenshots: LightboxImage[] = data.screenshots ?? [];
   const couchCategories =
     data.categories?.filter((c: { id: number; description: string }) =>
       COUCH_CATEGORY_IDS.has(c.id),
@@ -158,8 +164,7 @@ function GameDetailPage() {
               </Typography>
             </Box>
 
-            {/* Screenshots — minimum chrome, scroll bleeds past container edge */}
-            {data.screenshots !== undefined && data.screenshots.length > 0 && (
+            {screenshots.length > 0 && (
               <Box sx={{ mb: { xs: 5, md: 7 } }}>
                 <Stack
                   direction="row"
@@ -170,6 +175,9 @@ function GameDetailPage() {
                     Screenshots
                   </Typography>
                   <Box sx={{ flex: 1, height: 1, backgroundColor: 'divider' }} />
+                  <Typography variant="caption" color="text.secondary">
+                    Click any screenshot to enlarge
+                  </Typography>
                 </Stack>
                 <Box
                   sx={{
@@ -180,7 +188,7 @@ function GameDetailPage() {
                     mx: { xs: -2, md: 0 },
                     px: { xs: 2, md: 0 },
                     scrollSnapType: 'x mandatory',
-                    '& > a': { scrollSnapAlign: 'start' },
+                    '& > button': { scrollSnapAlign: 'start' },
                     scrollbarWidth: 'thin',
                     scrollbarColor: 'rgba(245, 237, 224, 0.18) transparent',
                     '&::-webkit-scrollbar': { height: 6 },
@@ -190,45 +198,98 @@ function GameDetailPage() {
                     },
                   }}
                 >
-                  {data.screenshots
-                    .slice(0, 10)
-                    .map((s: { id: number; path_thumbnail: string; path_full: string }) => (
+                  {screenshots.slice(0, 10).map((s, i) => (
+                    <Box
+                      key={s.id}
+                      component="button"
+                      type="button"
+                      onClick={() => {
+                        setLightboxIndex(i);
+                      }}
+                      aria-label={`Open screenshot ${i + 1} of ${data.name}`}
+                      sx={{
+                        all: 'unset',
+                        cursor: 'zoom-in',
+                        position: 'relative',
+                        flex: '0 0 auto',
+                        width: { xs: 320, md: 480 },
+                        aspectRatio: '16 / 9',
+                        overflow: 'hidden',
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        transition:
+                          'border-color 200ms ease, transform 200ms ease',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          transform: 'translateY(-2px)',
+                        },
+                        '&:hover .screenshot-img': {
+                          transform: 'scale(1.04)',
+                        },
+                        '&:hover .screenshot-overlay': { opacity: 1 },
+                        '&:hover .screenshot-icon': {
+                          opacity: 1,
+                          transform: 'translate(-50%, -50%) scale(1)',
+                        },
+                        '&:focus-visible': {
+                          outline: '2px solid',
+                          outlineColor: 'primary.main',
+                          outlineOffset: 2,
+                        },
+                      }}
+                    >
                       <Box
-                        key={s.id}
-                        component="a"
-                        href={s.path_full}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        component="img"
+                        className="screenshot-img"
+                        src={s.path_thumbnail}
+                        alt={`${data.name} screenshot ${i + 1}`}
+                        loading="lazy"
                         sx={{
-                          flex: '0 0 auto',
-                          width: { xs: 320, md: 480 },
-                          aspectRatio: '16 / 9',
-                          overflow: 'hidden',
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          transition: 'border-color 200ms ease, transform 200ms ease',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            transform: 'translateY(-2px)',
-                          },
-                          '&:hover img': { transform: 'scale(1.04)' },
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                          transition: 'transform 400ms ease',
+                        }}
+                      />
+                      <Box
+                        className="screenshot-overlay"
+                        aria-hidden
+                        sx={{
+                          position: 'absolute',
+                          inset: 0,
+                          background:
+                            'linear-gradient(180deg, rgba(8, 6, 5, 0) 50%, rgba(8, 6, 5, 0.65) 100%)',
+                          opacity: 0,
+                          transition: 'opacity 220ms ease',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                      <Box
+                        className="screenshot-icon"
+                        aria-hidden
+                        sx={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%) scale(0.85)',
+                          opacity: 0,
+                          transition: 'opacity 220ms ease, transform 220ms ease',
+                          color: 'primary.main',
+                          backgroundColor: 'rgba(8, 6, 5, 0.65)',
+                          backdropFilter: 'blur(6px)',
+                          width: 48,
+                          height: 48,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          pointerEvents: 'none',
                         }}
                       >
-                        <Box
-                          component="img"
-                          src={s.path_thumbnail}
-                          alt={`${data.name} screenshot`}
-                          loading="lazy"
-                          sx={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            display: 'block',
-                            transition: 'transform 400ms ease',
-                          }}
-                        />
+                        <ZoomOutMapIcon sx={{ fontSize: 22 }} />
                       </Box>
-                    ))}
+                    </Box>
+                  ))}
                 </Box>
               </Box>
             )}
@@ -295,6 +356,16 @@ function GameDetailPage() {
           </Box>
         </Box>
       </Container>
+
+      <Lightbox
+        images={screenshots}
+        index={lightboxIndex}
+        onClose={() => {
+          setLightboxIndex(null);
+        }}
+        onIndexChange={setLightboxIndex}
+        gameName={data.name}
+      />
     </>
   );
 }
