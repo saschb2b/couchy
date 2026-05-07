@@ -6,7 +6,7 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { searchCouchGames } from '../server/fns';
-import { STEAM_CATEGORY } from '../server/steam/categories';
+import { STEAM_CATEGORY, STEAM_TAG } from '../server/steam/categories';
 import type { SteamSort } from '../server/steam/categories';
 import type { SteamGameSummary } from '../server/steam/types';
 import { GameCard } from '../components/GameCard';
@@ -37,16 +37,35 @@ const SORTS: { value: SteamSort; label: string; hint: string }[] = [
   { value: 'globaltopsellers', label: 'All-time hits', hint: 'Long-term favourites' },
 ];
 
-function moodToCategoryIds(mood: Mood): number[] {
+interface MoodFilter {
+  categoryIds: number[];
+  tagIds?: number[];
+}
+
+// All five moods now resolve to distinct Steam queries. The hint copy in the
+// MOODS table below has to stay in sync with the tag chosen here, otherwise
+// users see "Strategy & co-op planning" and get a Story Rich rail.
+function moodToFilter(mood: Mood): MoodFilter {
   switch (mood) {
-    case 'party':
     case 'all':
-      return [STEAM_CATEGORY.sharedSplitScreen];
+      return { categoryIds: [STEAM_CATEGORY.sharedSplitScreen] };
+    case 'party':
+      return {
+        categoryIds: [STEAM_CATEGORY.sharedSplitScreen],
+        tagIds: [STEAM_TAG.partyGame],
+      };
     case 'brain':
+      return {
+        categoryIds: [STEAM_CATEGORY.sharedSplitScreenCoop],
+        tagIds: [STEAM_TAG.strategy],
+      };
     case 'story':
-      return [STEAM_CATEGORY.sharedSplitScreenCoop];
+      return {
+        categoryIds: [STEAM_CATEGORY.sharedSplitScreenCoop],
+        tagIds: [STEAM_TAG.storyRich],
+      };
     case 'versus':
-      return [STEAM_CATEGORY.sharedSplitScreenPvp];
+      return { categoryIds: [STEAM_CATEGORY.sharedSplitScreenPvp] };
   }
 }
 
@@ -87,9 +106,11 @@ export const Route = createFileRoute('/browse')({
     pageCount: search.pageCount,
   }),
   loader: async ({ deps }) => {
+    const filter = moodToFilter(deps.mood);
     const result = await searchCouchGames({
       data: {
-        categoryIds: moodToCategoryIds(deps.mood),
+        categoryIds: filter.categoryIds,
+        ...(filter.tagIds !== undefined && { tagIds: filter.tagIds }),
         sort: deps.sort,
         specials: deps.specials,
         pageCount: deps.pageCount,

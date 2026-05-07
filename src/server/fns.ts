@@ -15,6 +15,7 @@ const VALID_SORTS = new Set<SteamSort>([
 
 export interface SearchInput {
   categoryIds?: number[];
+  tagIds?: number[];
   sort?: SteamSort;
   /** Number of 25-result pages to fetch and concatenate. Defaults to 1. */
   pageCount?: number;
@@ -58,6 +59,10 @@ function validateSearchInput(input: unknown): SearchInput {
   const categoryIds = Array.isArray(categoryIdsRaw)
     ? categoryIdsRaw.filter((n): n is number => typeof n === 'number')
     : undefined;
+  const tagIdsRaw = obj.tagIds;
+  const tagIds = Array.isArray(tagIdsRaw)
+    ? tagIdsRaw.filter((n): n is number => typeof n === 'number')
+    : undefined;
   const sortRaw = obj.sort;
   const sort =
     typeof sortRaw === 'string' && VALID_SORTS.has(sortRaw as SteamSort)
@@ -73,6 +78,7 @@ function validateSearchInput(input: unknown): SearchInput {
     typeof obj.maxPriceCents === 'number' ? obj.maxPriceCents : undefined;
   const out: SearchInput = {};
   if (categoryIds !== undefined) out.categoryIds = categoryIds;
+  if (tagIds !== undefined) out.tagIds = tagIds;
   if (sort !== undefined) out.sort = sort;
   if (pageCount !== undefined) out.pageCount = pageCount;
   if (specials !== undefined) out.specials = specials;
@@ -106,6 +112,7 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
       Array.from({ length: pageCount }, (_unused, page) =>
         searchSteam({
           categoryIds,
+          ...(data.tagIds !== undefined && { tagIds: data.tagIds }),
           ...(data.sort !== undefined && { sort: data.sort }),
           page,
           ...(Object.keys(extra).length > 0 && { extra }),

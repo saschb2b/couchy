@@ -16,6 +16,8 @@ const STORE_BASE = 'https://store.steampowered.com';
 interface SearchOptions {
   /** Steam category3 IDs to AND together (Steam supports comma-separated list). */
   categoryIds?: number[];
+  /** Community tag IDs to AND with categories (Steam supports comma-separated). */
+  tagIds?: number[];
   sort?: SteamSort;
   /** 0-indexed page; Steam returns 25 per page. */
   page?: number;
@@ -30,6 +32,7 @@ interface SearchOptions {
 export async function searchSteam(opts: SearchOptions): Promise<SteamSearchPage> {
   const {
     categoryIds = [COUCH_PRIMARY_CATEGORY],
+    tagIds,
     sort,
     page = 0,
     cc = process.env.STEAM_CC ?? 'us',
@@ -45,6 +48,9 @@ export async function searchSteam(opts: SearchOptions): Promise<SteamSearchPage>
   params.set('count', '25');
   if (categoryIds.length > 0) {
     params.set('category3', categoryIds.join(','));
+  }
+  if (tagIds !== undefined && tagIds.length > 0) {
+    params.set('tags', tagIds.join(','));
   }
   if (sort !== undefined) {
     params.set('filter', sort);

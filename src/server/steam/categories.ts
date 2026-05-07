@@ -47,3 +47,20 @@ export const COUCH_CATEGORY_IDS: ReadonlySet<number> = new Set<number>([
 ]);
 
 export type SteamSort = 'topsellers' | 'newreleases' | 'globaltopsellers' | 'release_date';
+
+/**
+ * Steam community tag IDs we filter by. Resolved via the populartags endpoint
+ * and verified by inspecting reference titles' top tags:
+ *   partyGame   → Jackbox, Gang Beasts, Party Animals, Ultimate Chicken Horse
+ *   strategy    → For The King II, Tabletop Simulator, Cult of the Lamb
+ *   storyRich   → It Takes Two, Split Fiction, Portal 2, A Way Out
+ *
+ * Tag IDs share the integer namespace with category IDs (`9` is both the
+ * Co-op category AND the Strategy tag) but Steam disambiguates by query
+ * param (`category3=` vs `tags=`). Don't introduce literals elsewhere.
+ */
+export const STEAM_TAG = {
+  strategy: 9,
+  storyRich: 1742,
+  partyGame: 7178,
+} as const;
