@@ -4,6 +4,7 @@ import { STEAM_CATEGORY } from './steam/categories';
 import type { SteamSort } from './steam/categories';
 import type { SteamAppDetails, SteamGameSummary, SteamSearchPage } from './steam/types';
 import { resolveEditorsPicks } from './steam/editorsPicks';
+import { enrichGames } from './steam/enrich';
 
 const VALID_SORTS = new Set<SteamSort>([
   'topsellers',
@@ -132,7 +133,7 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
     return {
       totalCount,
       start: 0,
-      games: filtered,
+      games: await enrichGames(filtered),
     };
   });
 
@@ -285,6 +286,17 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
 
     // Drop rails that ended up too thin after dedup — better to omit than
     // to render a 2-card row.
-    return rails.filter((r) => r.games.length >= MIN_RAIL_SIZE);
+    const finalRails = rails.filter((r) => r.games.length >= MIN_RAIL_SIZE);
+
+    // Enrich every game we'll actually show with player-count + trailer URL.
+    // One `appdetails` call per unique appid; cached 24h on the server, so
+    // cold-start eats the latency once and every other render is free.
+    const allGames = finalRails.flatMap((r) => r.games);
+    const enriched = await enrichGames(allGames);
+    const byAppid = new Map(enriched.map((g) => [g.appid, g]));
+    return finalRails.map((r) => ({
+      ...r,
+      games: r.games.map((g) => byAppid.get(g.appid) ?? g),
+    }));
   },
 );

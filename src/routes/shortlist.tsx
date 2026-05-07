@@ -196,7 +196,7 @@ function EmptyState() {
         Hover any game card and tap the bookmark icon, or open a game and hit
         Save to shortlist. Picks live in this browser only.
       </Typography>
-      <ButtonLink to="/" variant="contained" size="large">
+      <ButtonLink to="/" search={{}} variant="contained" size="large">
         Browse the picks
       </ButtonLink>
     </Box>

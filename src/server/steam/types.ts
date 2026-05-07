@@ -16,6 +16,14 @@ export interface SteamGameSummary {
   /** Pre-discount price as Steam pre-formatted it. `null` when there's no discount. */
   originalPriceDisplay: string | null;
   href: string;
+  /**
+   * Max local players, parsed from the appdetails description. `null` when
+   * the description doesn't contain a recognizable count — still couch-
+   * playable, just not labelled. Source: `parseMaxPlayers`.
+   */
+  maxPlayers: number | null;
+  /** HLS trailer URL from `appdetails.movies[0].hls_h264`, when available. */
+  trailerHls: string | null;
 }
 
 /** Raw `appdetails` response (we only type the fields we read). */

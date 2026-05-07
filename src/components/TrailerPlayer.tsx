@@ -4,17 +4,35 @@ import { useEffect, useRef } from 'react';
 interface TrailerPlayerProps {
   /** Steam HLS playlist URL (`hls_h264` from the appdetails movies array). */
   src: string;
-  /** Poster image URL. */
-  poster: string;
+  /** Poster image URL. Optional for inline cards that already render the capsule. */
+  poster?: string;
+  /** Show native player controls. Default `true` for the detail page. */
+  controls?: boolean;
+  /** Loop playback. Default `false`. */
+  loop?: boolean;
+  /** Start muted. Default `false`. */
+  muted?: boolean;
+  /** Start playing on mount. Default `false`. */
+  autoPlay?: boolean;
+  /** CSS `object-position`. Default `'center'`. */
+  objectPosition?: string;
 }
 
 /**
  * Steam's current trailer schema returns HLS playlists (.m3u8). Safari plays
  * those natively; everywhere else needs Media Source Extensions plumbing.
  * We dynamic-import hls.js so the ~30 KB player code only ships when somebody
- * actually opens a detail page with a trailer.
+ * actually opens a detail page or hovers a rail card.
  */
-export function TrailerPlayer({ src, poster }: TrailerPlayerProps) {
+export function TrailerPlayer({
+  src,
+  poster,
+  controls = true,
+  loop = false,
+  muted = false,
+  autoPlay = false,
+  objectPosition = 'center',
+}: TrailerPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
@@ -49,7 +67,10 @@ export function TrailerPlayer({ src, poster }: TrailerPlayerProps) {
     <Box
       component="video"
       ref={videoRef}
-      controls
+      controls={controls}
+      loop={loop}
+      muted={muted}
+      autoPlay={autoPlay}
       preload="metadata"
       playsInline
       poster={poster}
@@ -58,6 +79,7 @@ export function TrailerPlayer({ src, poster }: TrailerPlayerProps) {
         height: '100%',
         display: 'block',
         objectFit: 'cover',
+        objectPosition,
         backgroundColor: '#000',
       }}
     />

@@ -1,4 +1,5 @@
 import { getAppDetails } from './client';
+import { parseMaxPlayers, pickTrailerHls } from './enrich';
 import type { SteamAppDetails, SteamGameSummary } from './types';
 
 /**
@@ -104,5 +105,7 @@ function appDetailsToSummary(d: SteamAppDetails): SteamGameSummary {
           : null,
     originalPriceDisplay: onSale ? price.initial_formatted : null,
     href: `https://store.steampowered.com/app/${String(d.steam_appid)}/`,
+    maxPlayers: parseMaxPlayers(d),
+    trailerHls: pickTrailerHls(d),
   };
 }

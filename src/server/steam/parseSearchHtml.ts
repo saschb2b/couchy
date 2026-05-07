@@ -121,6 +121,8 @@ export function parseSearchHtml(html: string): SteamGameSummary[] {
       finalPriceDisplay: finalPriceText,
       originalPriceDisplay: originalPriceText,
       href,
+      maxPlayers: null,
+      trailerHls: null,
     });
     seen.add(appidNum);
   });

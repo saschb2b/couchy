@@ -32,6 +32,7 @@ export function AppShell({ children }: AppShellProps) {
           <Toolbar disableGutters sx={{ gap: 2, minHeight: 64 }}>
             <Link
               to="/"
+              search={{}}
               style={{ textDecoration: 'none', color: 'inherit' }}
               aria-label="Couchy, home"
             >
@@ -75,7 +76,7 @@ export function AppShell({ children }: AppShellProps) {
               spacing={0.5}
               sx={{ display: { xs: 'none', sm: 'flex' } }}
             >
-              <ButtonLink to="/" variant="text" color="inherit">
+              <ButtonLink to="/" search={{}} variant="text" color="inherit">
                 Discover
               </ButtonLink>
               <ButtonLink

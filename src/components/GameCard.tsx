@@ -1,8 +1,10 @@
 import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
+import { useEffect, useRef, useState } from 'react';
 import { CardActionAreaLink } from './RouterLinks';
 import { ShortlistIconButton } from './ShortlistButton';
+import { TrailerPlayer } from './TrailerPlayer';
 import type { SteamGameSummary } from '../server/steam/types';
 
 interface GameCardProps {
@@ -22,21 +24,56 @@ const REVIEW_LABEL: Record<string, ReviewMeta> = {
   negative: { label: 'Negative', color: '#a34c25' },
 };
 
+const HOVER_PLAY_DELAY_MS = 450;
+
 export function GameCard({ game, layout = 'rail' }: GameCardProps) {
   const reviewMeta: ReviewMeta | null =
     game.reviewClass !== null && game.reviewClass in REVIEW_LABEL
       ? (REVIEW_LABEL[game.reviewClass] ?? null)
       : null;
   const onSale = game.discountPercent > 0;
+  const [showTrailer, setShowTrailer] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hoverTimer.current !== null) clearTimeout(hoverTimer.current);
+    };
+  }, []);
+
+  const onPointerEnter = () => {
+    if (game.trailerHls === null) return;
+    if (hoverTimer.current !== null) clearTimeout(hoverTimer.current);
+    hoverTimer.current = setTimeout(() => {
+      setShowTrailer(true);
+    }, HOVER_PLAY_DELAY_MS);
+  };
+  const onPointerLeave = () => {
+    if (hoverTimer.current !== null) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setShowTrailer(false);
+  };
 
   return (
     <Box
       component="article"
+      onPointerEnter={onPointerEnter}
+      onPointerLeave={onPointerLeave}
       sx={{
         ...(layout === 'rail'
           ? { width: 256, flex: '0 0 auto' }
           : { width: '100%' }),
         position: 'relative',
+        // Mount-only fade-up. Cards keyed by appid don't re-mount on parent
+        // re-renders, so this only fires for newly-arrived cards (e.g. the
+        // page that "Show more" just appended).
+        animation: 'gc-mount 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both',
+        '@keyframes gc-mount': {
+          from: { opacity: 0, transform: 'translateY(10px)' },
+          to: { opacity: 1, transform: 'translateY(0)' },
+        },
         // Hairline that brightens on hover.
         '&:hover .game-card-image-wrap': {
           transform: 'translateY(-3px)',
@@ -102,6 +139,28 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
                 display: 'block',
               }}
             />
+          )}
+          {showTrailer && game.trailerHls !== null && (
+            <Box
+              sx={{
+                position: 'absolute',
+                inset: 0,
+                opacity: 0,
+                animation: 'card-trailer-fade 320ms ease forwards',
+                '@keyframes card-trailer-fade': {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 },
+                },
+              }}
+            >
+              <TrailerPlayer
+                src={game.trailerHls}
+                controls={false}
+                loop
+                muted
+                autoPlay
+              />
+            </Box>
           )}
           {onSale && (
             <Box
@@ -201,6 +260,34 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
               >
                 {game.releasedAt}
               </Typography>
+            )}
+            {game.maxPlayers !== null && (
+              <>
+                <Box
+                  sx={{
+                    width: 2,
+                    height: 2,
+                    borderRadius: '50%',
+                    backgroundColor: 'text.secondary',
+                    opacity: 0.6,
+                    flex: '0 0 auto',
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'primary.main',
+                    fontWeight: 700,
+                    fontSize: 11,
+                    letterSpacing: '0.02em',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                  }}
+                  title={`Up to ${String(game.maxPlayers)} players`}
+                >
+                  {game.maxPlayers}P
+                </Typography>
+              </>
             )}
           </Stack>
 

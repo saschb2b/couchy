@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
+import CircularProgress from '@mui/material/CircularProgress';
 import { searchCouchGames } from '../server/fns';
 import { STEAM_CATEGORY } from '../server/steam/categories';
 import type { SteamSort } from '../server/steam/categories';
@@ -271,6 +272,13 @@ function BrowsePage() {
             {result.games.map((game: SteamGameSummary) => (
               <GameCard key={game.appid} game={game} layout="grid" />
             ))}
+            {isLoading &&
+              // Placeholder cells that mirror the card's aspect ratio so the
+              // grid grows immediately when "Show more" is clicked, instead
+              // of leaving the user staring at the same scrollable view.
+              Array.from({ length: PAGE_SIZE }).map((_unused, i) => (
+                <GameCardSkeleton key={`sk-${String(i)}`} />
+              ))}
           </Box>
 
           {result.games.length === 0 && (
@@ -294,11 +302,23 @@ function BrowsePage() {
                 size="large"
                 onClick={showMore}
                 disabled={reachedMax || isLoading}
+                startIcon={
+                  isLoading && !reachedMax ? (
+                    <CircularProgress size={14} thickness={5} color="inherit" />
+                  ) : null
+                }
+                sx={{
+                  minWidth: 200,
+                  transition: 'transform 120ms ease',
+                  '&:active': {
+                    transform: 'scale(0.97)',
+                  },
+                }}
               >
                 {reachedMax
                   ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)}. Refine filters for the rest.`
                   : isLoading
-                    ? 'Loading'
+                    ? 'Loading more'
                     : 'Show more'}
               </Button>
             </Box>
@@ -306,6 +326,63 @@ function BrowsePage() {
         </Box>
       </Box>
     </Container>
+  );
+}
+
+function GameCardSkeleton() {
+  return (
+    <Box
+      sx={{
+        width: '100%',
+        animation: 'sk-fade 240ms ease both',
+        '@keyframes sk-fade': {
+          from: { opacity: 0 },
+          to: { opacity: 1 },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          aspectRatio: '460 / 215',
+          border: '1px solid',
+          borderColor: 'divider',
+          backgroundColor: 'rgba(245, 237, 224, 0.04)',
+          // Sheen sweeps across the placeholder so the grid feels like it's
+          // doing something even before the new data lands.
+          backgroundImage:
+            'linear-gradient(110deg, transparent 30%, rgba(255, 209, 102, 0.08) 50%, transparent 70%)',
+          backgroundSize: '300% 100%',
+          animation: 'sk-sheen 1400ms ease-in-out infinite',
+          '@keyframes sk-sheen': {
+            from: { backgroundPosition: '120% 0' },
+            to: { backgroundPosition: '-20% 0' },
+          },
+        }}
+      />
+      <Stack spacing={0.75} sx={{ pt: 1.5, px: 0.25 }}>
+        <Box
+          sx={{
+            height: '1.25em',
+            width: '70%',
+            backgroundColor: 'rgba(245, 237, 224, 0.08)',
+          }}
+        />
+        <Box
+          sx={{
+            height: 11,
+            width: '40%',
+            backgroundColor: 'rgba(245, 237, 224, 0.06)',
+          }}
+        />
+        <Box
+          sx={{
+            height: 14,
+            width: '30%',
+            backgroundColor: 'rgba(245, 237, 224, 0.06)',
+          }}
+        />
+      </Stack>
+    </Box>
   );
 }
 
