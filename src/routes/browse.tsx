@@ -257,10 +257,14 @@ function BrowsePage() {
               display: 'grid',
               gap: { xs: 2, md: 3 },
               gridTemplateColumns: {
-                xs: 'repeat(2, 1fr)',
-                sm: 'repeat(3, 1fr)',
-                md: 'repeat(3, 1fr)',
-                lg: 'repeat(4, 1fr)',
+                // minmax(0, 1fr) — without the explicit 0 floor, `1fr` columns
+                // expand to the widest card's intrinsic min-content (set by
+                // the <img> file dimensions). Steam serves capsules at varying
+                // pixel widths so the columns end up unequal otherwise.
+                xs: 'repeat(2, minmax(0, 1fr))',
+                sm: 'repeat(3, minmax(0, 1fr))',
+                md: 'repeat(3, minmax(0, 1fr))',
+                lg: 'repeat(4, minmax(0, 1fr))',
               },
             }}
           >

@@ -62,10 +62,10 @@ function ShortlistGrid({ items }: { items: ShortlistItem[] }) {
         display: 'grid',
         gap: { xs: 2, md: 3 },
         gridTemplateColumns: {
-          xs: 'repeat(2, 1fr)',
-          sm: 'repeat(3, 1fr)',
-          md: 'repeat(4, 1fr)',
-          lg: 'repeat(5, 1fr)',
+          xs: 'repeat(2, minmax(0, 1fr))',
+          sm: 'repeat(3, minmax(0, 1fr))',
+          md: 'repeat(4, minmax(0, 1fr))',
+          lg: 'repeat(5, minmax(0, 1fr))',
         },
       }}
     >
