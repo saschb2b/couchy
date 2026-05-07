@@ -12,6 +12,9 @@ export default tseslint.config(
       '.tanstack',
       'node_modules',
       'src/routeTree.gen.ts',
+      // Plain Node entry, not part of the TS project. Linted only by the
+      // recommended JS ruleset since there's no tsconfig coverage for it.
+      'server-entry.mjs',
     ],
   },
   js.configs.recommended,
