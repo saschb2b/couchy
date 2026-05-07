@@ -15,6 +15,8 @@ export default tseslint.config(
       // Plain Node entry, not part of the TS project. Linted only by the
       // recommended JS ruleset since there's no tsconfig coverage for it.
       'server-entry.mjs',
+      // One-off audit utilities, run with `node scripts/*.mjs`.
+      'scripts/**',
     ],
   },
   js.configs.recommended,

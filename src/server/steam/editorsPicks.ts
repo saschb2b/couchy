@@ -8,18 +8,21 @@ import type { SteamAppDetails, SteamGameSummary } from './types';
  * loses its Shared/Split Screen tag, drop it. Add new entries deliberately,
  * not because they're trending.
  *
- * A note on filtering strategy. The discovery rails filter on Steam's
- * dev-set Shared/Split Screen category (id 24). Empirically that catches
- * ~90% of canonical couch games — but Steam's metadata is incomplete and
- * some well-known couch games are missing the tag (Nidhogg 2, Magicka,
- * Speedrunners, Worms). Switching to community tag 3841 ("Local Co-Op")
- * gives roughly equivalent coverage and doesn't help. The editorial
- * allowlist below is how we surface the gaps — picks bypass the category
- * filter entirely. Before adding a new entry, verify it's genuinely
- * couch-playable; before removing one, sanity-check the metadata hasn't
- * just temporarily slipped.
+ * The list does two jobs:
  *
- * Review the list once a quarter.
+ * 1. Editorial layer — staples that we want anchoring the discovery feed
+ *    even when sales rank pushes them off the topsellers cut. Most are
+ *    also in cat 24, so without this rail they'd still surface; with it,
+ *    they get a curated lane on the homepage.
+ *
+ * 2. Cat-24 backfill — genuine false negatives, where Steam's metadata
+ *    misses the Shared/Split Screen tag. These would NOT appear in our
+ *    category-filtered rails without the allowlist. Verified via
+ *    `scripts/audit-picks.mjs` against the cat 37 (PvP shared/split) or
+ *    cat 39 (Co-op shared/split) child tags — if Steam doesn't claim
+ *    same-screen anywhere in the metadata, we don't override it.
+ *
+ * Review the list once a quarter; re-run the audit script then.
  */
 interface EditorsPick {
   appid: number;
@@ -28,6 +31,7 @@ interface EditorsPick {
 }
 
 const PICKS: readonly EditorsPick[] = [
+  // Editorial staples (all currently in cat 24).
   { appid: 413150, name: 'Stardew Valley' },
   { appid: 1426210, name: 'It Takes Two' },
   { appid: 291550, name: 'Brawlhalla' },
@@ -38,11 +42,14 @@ const PICKS: readonly EditorsPick[] = [
   { appid: 1222700, name: 'A Way Out' },
   { appid: 252110, name: 'Lovers in a Dangerous Spacetime' },
   { appid: 35720, name: 'Trine 2: Complete Story' },
-  // Below this line: cat 24 false negatives. Genuinely playable on one
-  // couch but not flagged as such by their developers, so they wouldn't
-  // appear in our category-filtered rails without this allowlist.
   { appid: 535520, name: 'Nidhogg 2' },
   { appid: 207140, name: 'SpeedRunners' },
+
+  // Cat-24 backfill: cat 37/39 confirms local play, but cat 24 missing.
+  { appid: 976310, name: 'Mortal Kombat 11' },
+  { appid: 245170, name: 'Skullgirls 2nd Encore' },
+  { appid: 574980, name: "Them's Fightin' Herds" },
+  { appid: 22600, name: 'Worms Reloaded' },
 ];
 
 export function editorsPickAppids(): readonly number[] {
