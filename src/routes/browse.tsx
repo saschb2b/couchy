@@ -3,8 +3,7 @@ import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
-import Button from '@mui/material/Button';
-import CircularProgress from '@mui/material/CircularProgress';
+import { useEffect, useRef } from 'react';
 import { searchCouchGames } from '../server/fns';
 import { STEAM_CATEGORY, STEAM_TAG } from '../server/steam/categories';
 import type { SteamSort } from '../server/steam/categories';
@@ -21,7 +20,12 @@ interface BrowseSearch {
 }
 
 const PAGE_SIZE = 25;
-const MAX_PAGE_COUNT = 8;
+/**
+ * Client-side sanity ceiling on pageCount. Not a product cap — the server's
+ * validator clamps too, and Steam's `totalCount` is the real end. This is
+ * here purely so a broken client can't request 10,000 pages and DOS us.
+ */
+const MAX_PAGE_COUNT = 200;
 
 const MOODS: { value: Mood; label: string; hint: string }[] = [
   { value: 'all', label: 'Everything', hint: 'All same-screen games' },
@@ -135,7 +139,7 @@ function BrowsePage() {
     });
   };
 
-  const showMore = () => {
+  const loadMore = () => {
     void navigate({
       to: '/browse',
       search: { ...search, pageCount: Math.min(MAX_PAGE_COUNT, search.pageCount + 1) },
@@ -143,13 +147,42 @@ function BrowsePage() {
     });
   };
 
-  const reachedMax = search.pageCount >= MAX_PAGE_COUNT;
   // totalCount can come back as 0 when Steam serves a markup variant we don't
   // parse (seen on datacenter IPs for cat 24). In that case "reached end" is
-  // unknowable from the count alone; rely on pagination cap + page-fill below.
+  // unknowable from the count alone; let the IntersectionObserver keep
+  // probing — Steam returns an empty page eventually and reachedEnd flips.
   const knownTotal = result.totalCount > 0 ? result.totalCount : null;
-  const reachedEnd = knownTotal !== null && result.games.length >= knownTotal;
+  const reachedEnd =
+    (knownTotal !== null && result.games.length >= knownTotal) ||
+    search.pageCount >= MAX_PAGE_COUNT;
   const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
+
+  // Infinite scroll: a sentinel below the grid auto-triggers the next page
+  // when it enters the viewport. The 600px root margin gives us a head start
+  // so the next batch usually lands before the user scrolls into the empty
+  // zone. Re-armed on pageCount/loading/end changes so a fast scroller can
+  // chain pages without waiting for the previous load to finish painting.
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (sentinel === null) return undefined;
+    if (isLoading || reachedEnd) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting === true) {
+          loadMore();
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+    observer.observe(sentinel);
+    return () => {
+      observer.disconnect();
+    };
+    // loadMore closes over `search`; depending on search.pageCount is
+    // sufficient to re-create the observer after each navigation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, reachedEnd, search.pageCount]);
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
@@ -322,32 +355,7 @@ function BrowsePage() {
           )}
 
           {result.games.length > 0 && !reachedEnd && (
-            <Box sx={{ py: 5, textAlign: 'center' }}>
-              <Button
-                variant="outlined"
-                size="large"
-                onClick={showMore}
-                disabled={reachedMax || isLoading}
-                startIcon={
-                  isLoading && !reachedMax ? (
-                    <CircularProgress size={14} thickness={5} color="inherit" />
-                  ) : null
-                }
-                sx={{
-                  minWidth: 200,
-                  transition: 'transform 120ms ease',
-                  '&:active': {
-                    transform: 'scale(0.97)',
-                  },
-                }}
-              >
-                {reachedMax
-                  ? `Showing the first ${String(MAX_PAGE_COUNT * PAGE_SIZE)}. Refine filters for the rest.`
-                  : isLoading
-                    ? 'Loading more'
-                    : 'Show more'}
-              </Button>
-            </Box>
+            <Box ref={sentinelRef} aria-hidden sx={{ height: 1, py: 4 }} />
           )}
         </Box>
       </Box>

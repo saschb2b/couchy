@@ -24,7 +24,13 @@ export interface SearchInput {
   maxPriceCents?: number;
 }
 
-const MAX_PAGE_COUNT = 8;
+/**
+ * Server-side sanity ceiling on a single search call. Not a product cap —
+ * Steam's `totalCount` is the real end. This just prevents a broken or
+ * malicious client from asking for thousands of pages and burning our rate
+ * limit. 200 × 25 = 5000 games is well past Steam's couch cat-24 total.
+ */
+const MAX_PAGE_COUNT = 200;
 
 export interface DiscoveryRail {
   key: string;
