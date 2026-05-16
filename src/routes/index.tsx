@@ -7,6 +7,7 @@ import type { DiscoveryRail } from '../server/fns';
 import { Hero } from '../components/Hero';
 import { MoodGrid } from '../components/MoodGrid';
 import { GameRail } from '../components/GameRail';
+import type { SteamGameSummary } from '../server/steam/types';
 
 interface IndexSearch {
   players?: number;
@@ -25,8 +26,8 @@ export const Route = createFileRoute('/')({
     return {};
   },
   loader: async () => {
-    const rails = await fetchDiscoveryRails();
-    return { rails };
+    const payload = await fetchDiscoveryRails();
+    return payload;
   },
   staleTime: 30 * 60 * 1000,
   component: DiscoveryPage,
@@ -34,8 +35,12 @@ export const Route = createFileRoute('/')({
   pendingComponent: DiscoveryPendingState,
 });
 
+function passesPlayerFilter(g: SteamGameSummary, players: number): boolean {
+  return g.maxPlayers === null || g.maxPlayers >= players;
+}
+
 function DiscoveryPage() {
-  const { rails } = Route.useLoaderData();
+  const { rails, spotlights } = Route.useLoaderData();
   const { players } = Route.useSearch();
   const navigate = useNavigate();
 
@@ -51,13 +56,21 @@ function DiscoveryPage() {
       : rails
           .map((r) => ({
             ...r,
-            games: r.games.filter(
-              (g) => g.maxPlayers === null || g.maxPlayers >= players,
-            ),
+            games: r.games.filter((g) => passesPlayerFilter(g, players)),
           }))
           .filter((r) => r.games.length > 0);
 
-  const spotlights = (filteredRails[0]?.games ?? []).slice(0, HERO_SPOTLIGHT_COUNT);
+  // Server picked the spotlight mix already; apply the player filter on top.
+  // If the filter wipes all spotlights, fall back to the first remaining rail
+  // so the hero never blanks out.
+  const filteredSpotlights =
+    players === undefined
+      ? spotlights
+      : spotlights.filter((g) => passesPlayerFilter(g, players));
+  const heroSpotlights =
+    filteredSpotlights.length > 0
+      ? filteredSpotlights.slice(0, HERO_SPOTLIGHT_COUNT)
+      : (filteredRails[0]?.games ?? []).slice(0, HERO_SPOTLIGHT_COUNT);
   const allEmpty = filteredRails.length === 0;
 
   const onPlayerCountChange = (next: number | null) => {
@@ -70,7 +83,7 @@ function DiscoveryPage() {
   return (
     <>
       <Hero
-        spotlights={spotlights}
+        spotlights={heroSpotlights}
         playerCount={players ?? null}
         onPlayerCountChange={onPlayerCountChange}
       />

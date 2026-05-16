@@ -5,6 +5,7 @@ import type { SteamSort } from './steam/categories';
 import type { SteamAppDetails, SteamGameSummary, SteamSearchPage } from './steam/types';
 import { resolveEditorsPicks } from './steam/editorsPicks';
 import { enrichGames } from './steam/enrich';
+import { fetchSteamSpyTag, resolveTrendingCouchGames } from './steam/steamspy';
 
 const VALID_SORTS = new Set<SteamSort>([
   'topsellers',
@@ -32,6 +33,16 @@ export interface DiscoveryRail {
   games: SteamGameSummary[];
   /** When omitted, the rail won't render a "See all on Steam" link. */
   steamSearchUrl?: string;
+}
+
+export interface DiscoveryPayload {
+  rails: DiscoveryRail[];
+  /**
+   * Pre-selected hero spotlights. Mixed daily from several rails so the hero
+   * doesn't show the same editor's-picks set on every visit. Empty when no
+   * rail has enough games (e.g. Steam outage).
+   */
+  spotlights: SteamGameSummary[];
 }
 
 function buildSteamSearchUrl(
@@ -179,9 +190,24 @@ async function searchPaged(
 const RAIL_LIMIT = 14;
 const MIN_RAIL_SIZE = 6;
 const CANDIDATE_PAGES = 2;
+const HERO_SPOTLIGHT_COUNT = 4;
+
+/**
+ * Rail keys to draw hero spotlights from, in preferred order. We pull one
+ * game from each (seeded by day-of-epoch + key) so the hero mixes editorial,
+ * trending, fresh, and discounted picks. Order matters: an earlier rail
+ * fills its slot first and blocks the same appid in later rails.
+ */
+const HERO_RAIL_KEYS: readonly string[] = [
+  'editors-picks',
+  'trending-couch',
+  'new-releases',
+  'on-sale',
+  'top-sellers',
+];
 
 export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<DiscoveryRail[]> => {
+  async (): Promise<DiscoveryPayload> => {
     const couch = STEAM_CATEGORY.sharedSplitScreen;
     const couchCoop = STEAM_CATEGORY.sharedSplitScreenCoop;
     const couchVersus = STEAM_CATEGORY.sharedSplitScreenPvp;
@@ -197,15 +223,20 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
         { categoryIds: [couch], sort: 'topsellers', extra: { specials: '1' } },
         CANDIDATE_PAGES,
       ),
+      fetchSteamSpyTag('Local Co-Op'),
     ]);
-    const pools = settled.map((s) =>
-      s.status === 'fulfilled' ? s.value : ([] as SteamGameSummary[]),
-    );
-    const crowdPool = pools[0] ?? [];
-    const coopPool = pools[1] ?? [];
-    const versusPool = pools[2] ?? [];
-    const newPool = pools[3] ?? [];
-    const salePool = pools[4] ?? [];
+    const crowdPool =
+      settled[0].status === 'fulfilled' ? settled[0].value : [];
+    const coopPool =
+      settled[1].status === 'fulfilled' ? settled[1].value : [];
+    const versusPool =
+      settled[2].status === 'fulfilled' ? settled[2].value : [];
+    const newPool =
+      settled[3].status === 'fulfilled' ? settled[3].value : [];
+    const salePool =
+      settled[4].status === 'fulfilled' ? settled[4].value : [];
+    const trendingRanked =
+      settled[5].status === 'fulfilled' ? settled[5].value : null;
 
     // Build appid → first-seen-summary map across every pool. Used so the
     // editor's picks rail can avoid an extra appdetails round-trip when a
@@ -218,7 +249,12 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
       }
     }
 
-    const editorsPicks = await resolveEditorsPicks(allCandidates);
+    const [editorsPicks, trendingPool] = await Promise.all([
+      resolveEditorsPicks(allCandidates),
+      trendingRanked === null
+        ? Promise.resolve([] as SteamGameSummary[])
+        : resolveTrendingCouchGames(trendingRanked, allCandidates, RAIL_LIMIT * 2),
+    ]);
 
     // Cross-rail dedup. Rails take in priority order; a game shown in an
     // earlier rail is removed from later candidate lists.
@@ -257,6 +293,15 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
       games: take(crowdPool),
       steamSearchUrl: buildSteamSearchUrl([couch], 'topsellers'),
     });
+
+    if (trendingPool.length >= MIN_RAIL_SIZE) {
+      rails.push({
+        key: 'trending-couch',
+        title: 'Trending on couch lately',
+        subtitle: 'What couch players are firing up this week.',
+        games: take(trendingPool),
+      });
+    }
 
     rails.push({
       key: 'co-op-adventures',
@@ -301,9 +346,70 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
     const allGames = finalRails.flatMap((r) => r.games);
     const enriched = await enrichGames(allGames);
     const byAppid = new Map(enriched.map((g) => [g.appid, g]));
-    return finalRails.map((r) => ({
+    const enrichedRails = finalRails.map((r) => ({
       ...r,
       games: r.games.map((g) => byAppid.get(g.appid) ?? g),
     }));
+
+    const spotlights = buildSpotlights(enrichedRails, HERO_SPOTLIGHT_COUNT);
+
+    return { rails: enrichedRails, spotlights };
   },
 );
+
+/**
+ * Pick the hero spotlight set. Pulls one game from each of `HERO_RAIL_KEYS`
+ * in order, seeded by the current day-of-epoch so the same visitor on the
+ * same day sees the same hero, but the set rotates every 24h. When a
+ * preferred rail is missing or empty (e.g. SteamSpy outage), the slot is
+ * skipped and later rails fill in.
+ */
+function buildSpotlights(
+  rails: readonly DiscoveryRail[],
+  count: number,
+): SteamGameSummary[] {
+  if (rails.length === 0) return [];
+  const daySeed = Math.floor(Date.now() / 86_400_000);
+  const byKey = new Map(rails.map((r) => [r.key, r]));
+  const used = new Set<number>();
+  const picked: SteamGameSummary[] = [];
+
+  for (const key of HERO_RAIL_KEYS) {
+    if (picked.length >= count) break;
+    const games = byKey.get(key)?.games ?? [];
+    if (games.length === 0) continue;
+    const start = seededIndex(daySeed, key, games.length);
+    for (let i = 0; i < games.length; i++) {
+      const g = games[(start + i) % games.length];
+      if (g === undefined || used.has(g.appid)) continue;
+      picked.push(g);
+      used.add(g.appid);
+      break;
+    }
+  }
+
+  // Backfill from any rail if we still don't have enough. Rare; happens when
+  // most preferred rails were dropped for being thin.
+  if (picked.length < count) {
+    outer: for (const rail of rails) {
+      for (const g of rail.games) {
+        if (used.has(g.appid)) continue;
+        picked.push(g);
+        used.add(g.appid);
+        if (picked.length >= count) break outer;
+      }
+    }
+  }
+
+  return picked;
+}
+
+function seededIndex(daySeed: number, key: string, modulo: number): number {
+  if (modulo <= 0) return 0;
+  let h = (daySeed ^ 0x9e3779b9) >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h % modulo;
+}
