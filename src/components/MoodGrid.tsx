@@ -127,6 +127,7 @@ export function MoodGrid() {
                 mood: mood.slug,
                 sort: 'topsellers',
                 specials: false,
+                party: 0,
                 pageCount: 1,
               }}
               sx={{

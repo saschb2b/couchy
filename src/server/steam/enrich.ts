@@ -1,4 +1,6 @@
 import { getAppDetails } from './client';
+import { loadPcgwLocalPlay } from './pcgw';
+import type { LocalPlayInfo } from './pcgw';
 import type { SteamAppDetails, SteamGameSummary } from './types';
 
 /**
@@ -70,9 +72,10 @@ export function pickTrailerHls(details: SteamAppDetails): string | null {
 }
 
 /**
- * Enrich a list of `SteamGameSummary` with max-player count and trailer URL
- * pulled from `appdetails`. Calls are deduped by appid and made in parallel;
- * `getAppDetails` itself caches for 24h, so subsequent renders are free.
+ * Enrich a list of `SteamGameSummary` with max-player count, trailer URL, and
+ * structured PCGamingWiki local-play data. `appdetails` calls are deduped by
+ * appid and made in parallel; PCGW data is one cached bulk fetch shared
+ * across the whole batch. Both upstreams cache for 24h.
  *
  * Failed lookups are silently dropped — the game still renders, just without
  * a player chip or hover trailer. Never throw out of here; the discovery
@@ -87,24 +90,40 @@ export async function enrichGames<T extends SteamGameSummary>(
   }
 
   const enriched = new Map<number, { maxPlayers: number | null; trailerHls: string | null }>();
-  await Promise.all(
-    [...unique.keys()].map(async (appid) => {
-      try {
-        const details = await getAppDetails(appid);
-        if (details === null) return;
-        enriched.set(appid, {
-          maxPlayers: parseMaxPlayers(details),
-          trailerHls: pickTrailerHls(details),
-        });
-      } catch {
-        // Swallow: the game keeps its `null` defaults.
-      }
-    }),
-  );
+  const [, pcgwResult] = await Promise.all([
+    Promise.all(
+      [...unique.keys()].map(async (appid) => {
+        try {
+          const details = await getAppDetails(appid);
+          if (details === null) return;
+          enriched.set(appid, {
+            maxPlayers: parseMaxPlayers(details),
+            trailerHls: pickTrailerHls(details),
+          });
+        } catch {
+          // Swallow: the game keeps its `null` defaults.
+        }
+      }),
+    ),
+    loadPcgwLocalPlay().catch((): ReadonlyMap<number, LocalPlayInfo> => new Map()),
+  ]);
 
   return games.map((g) => {
     const extra = enriched.get(g.appid);
-    if (extra === undefined) return g;
-    return { ...g, maxPlayers: extra.maxPlayers, trailerHls: extra.trailerHls };
+    const pcgw = pcgwResult.get(g.appid) ?? null;
+    const localPlayers: SteamGameSummary['localPlayers'] =
+      pcgw !== null
+        ? { min: pcgw.min, max: pcgw.max, modes: pcgw.modes }
+        : null;
+    if (extra === undefined) {
+      if (pcgw === null) return g;
+      return { ...g, localPlayers };
+    }
+    return {
+      ...g,
+      maxPlayers: extra.maxPlayers,
+      trailerHls: extra.trailerHls,
+      localPlayers,
+    };
   });
 }

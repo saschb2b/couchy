@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
+import { Link } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { ButtonLink } from './RouterLinks';
 import { TrailerPlayer } from './TrailerPlayer';
@@ -10,9 +11,6 @@ import type { SteamGameSummary } from '../server/steam/types';
 interface HeroProps {
   /** Up to ~4 games to rotate through. Empty = static fallback hero. */
   spotlights: SteamGameSummary[];
-  /** Currently selected player count (2..5 where 5 means 5+); null = no filter. */
-  playerCount: number | null;
-  onPlayerCountChange: (count: number | null) => void;
 }
 
 const ROTATE_MS = 9000;
@@ -22,7 +20,7 @@ function libraryHeroUrl(appid: number): string {
   return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
 }
 
-export function Hero({ spotlights, playerCount, onPlayerCountChange }: HeroProps) {
+export function Hero({ spotlights }: HeroProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -205,7 +203,7 @@ export function Hero({ spotlights, playerCount, onPlayerCountChange }: HeroProps
             are already on the table.
           </Typography>
 
-          <PlayerCountSelector value={playerCount} onChange={onPlayerCountChange} />
+          <PlayerCountSelector />
 
           {current !== null && (
             <Stack
@@ -230,6 +228,7 @@ export function Hero({ spotlights, playerCount, onPlayerCountChange }: HeroProps
                   mood: 'all',
                   sort: 'topsellers',
                   specials: false,
+                  party: 0,
                   pageCount: 1,
                 }}
                 variant="outlined"
@@ -313,12 +312,13 @@ export function Hero({ spotlights, playerCount, onPlayerCountChange }: HeroProps
   );
 }
 
-interface PlayerCountSelectorProps {
-  value: number | null;
-  onChange: (next: number | null) => void;
-}
-
-function PlayerCountSelector({ value, onChange }: PlayerCountSelectorProps) {
+/**
+ * Hero player-count chips. Each chip deep-links to `/browse?party=N` so the
+ * filter has a single owner — the browse-page strip. The home page itself
+ * doesn't track a player-count state; the chips are an entry point, not a
+ * local filter.
+ */
+function PlayerCountSelector() {
   return (
     <Stack
       direction="row"
@@ -342,47 +342,59 @@ function PlayerCountSelector({ value, onChange }: PlayerCountSelectorProps) {
         On the couch tonight:
       </Typography>
       {PLAYER_COUNTS.map((n) => {
-        const active = value === n;
         const label = n === 5 ? '5+' : String(n);
         return (
           <Box
             key={n}
-            component="button"
-            type="button"
-            aria-pressed={active}
-            onClick={() => {
-              onChange(active ? null : n);
-            }}
             sx={{
-              all: 'unset',
-              cursor: 'pointer',
               minWidth: 38,
               height: 36,
-              px: 1.5,
               display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: 'stretch',
               border: '1px solid',
-              borderColor: active ? 'primary.main' : 'rgba(245, 237, 224, 0.22)',
-              backgroundColor: active ? 'primary.main' : 'transparent',
-              color: active ? 'background.default' : 'text.primary',
-              fontFamily: 'body1.fontFamily',
-              fontWeight: 600,
-              fontSize: 15,
-              letterSpacing: '0.01em',
-              transition: 'border-color 160ms ease, background-color 160ms ease, color 160ms ease',
+              borderColor: 'rgba(245, 237, 224, 0.22)',
+              transition: 'border-color 160ms ease, background-color 160ms ease',
               '&:hover': {
                 borderColor: 'primary.main',
-                color: active ? 'background.default' : 'primary.main',
+                backgroundColor: 'rgba(255, 209, 102, 0.06)',
               },
-              '&:focus-visible': {
+              '&:hover a': {
+                color: 'primary.main',
+              },
+              '&:focus-within': {
                 outline: '2px solid',
                 outlineColor: 'primary.main',
                 outlineOffset: 2,
               },
             }}
           >
-            {label}
+            <Link
+              to="/browse"
+              search={{
+                mood: 'all',
+                sort: 'topsellers',
+                specials: false,
+                party: n,
+                pageCount: 1,
+              }}
+              aria-label={`Browse ${label}-player couch games`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingInline: 12,
+                width: '100%',
+                textDecoration: 'none',
+                color: 'inherit',
+                fontFamily: 'inherit',
+                fontWeight: 600,
+                fontSize: 15,
+                letterSpacing: '0.01em',
+                outline: 'none',
+              }}
+            >
+              {label}
+            </Link>
           </Box>
         );
       })}

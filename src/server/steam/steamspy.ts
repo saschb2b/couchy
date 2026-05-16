@@ -138,6 +138,7 @@ function appDetailsToSummary(d: SteamAppDetails): SteamGameSummary {
     originalPriceDisplay: onSale ? price.initial_formatted : null,
     href: `https://store.steampowered.com/app/${String(d.steam_appid)}/`,
     maxPlayers: parseMaxPlayers(d),
+    localPlayers: null,
     trailerHls: pickTrailerHls(d),
   };
 }

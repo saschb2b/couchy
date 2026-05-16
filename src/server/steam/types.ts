@@ -22,6 +22,14 @@ export interface SteamGameSummary {
    * playable, just not labelled. Source: `parseMaxPlayers`.
    */
   maxPlayers: number | null;
+  /**
+   * Structured local-play range from PCGamingWiki, when the wiki has the
+   * game. Higher confidence than `maxPlayers` (regex over marketing copy):
+   * the wiki carries `min` and `max` separately and a `modes` list. `null`
+   * for games not in the wiki, in which case `maxPlayers` is the only
+   * available signal.
+   */
+  localPlayers: { min: number; max: number; modes: string[] } | null;
   /** HLS trailer URL from `appdetails.movies[0].hls_h264`, when available. */
   trailerHls: string | null;
 }
@@ -77,4 +85,11 @@ export interface SteamSearchPage {
   totalCount: number;
   start: number;
   games: SteamGameSummary[];
+  /**
+   * Set when one or more requested pages failed (typically a 403/429 from
+   * Steam's rate limiter). The `games` array is the contiguous prefix of
+   * pages that did succeed. The browse UI uses this to halt auto-loading
+   * and offer the user a deliberate retry instead of hammering Steam.
+   */
+  partial: boolean;
 }

@@ -71,6 +71,7 @@ export async function searchSteam(opts: SearchOptions): Promise<SteamSearchPage>
       totalCount,
       start: page * 25,
       games: parseSearchHtml(html),
+      partial: false,
     };
   });
 }

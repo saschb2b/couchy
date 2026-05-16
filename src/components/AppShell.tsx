@@ -85,6 +85,7 @@ export function AppShell({ children }: AppShellProps) {
                   mood: 'all',
                   sort: 'topsellers',
                   specials: false,
+                  party: 0,
                   pageCount: 1,
                 }}
                 variant="text"

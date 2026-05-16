@@ -125,7 +125,11 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
     const pageCount = Math.max(1, Math.min(MAX_PAGE_COUNT, data.pageCount ?? 1));
     const categoryIds = data.categoryIds ?? [STEAM_CATEGORY.sharedSplitScreen];
 
-    const pages = await Promise.all(
+    // allSettled (not all) — a single Steam 403 mid-chain shouldn't crash
+    // the whole route. Take the contiguous prefix of fulfilled pages; the
+    // first failure marks the result as `partial` so the browse UI halts
+    // auto-loading and shows a deliberate retry.
+    const settled = await Promise.allSettled(
       Array.from({ length: pageCount }, (_unused, page) =>
         searchSteam({
           categoryIds,
@@ -136,6 +140,16 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
         }),
       ),
     );
+    const pages: SteamSearchPage[] = [];
+    let partial = false;
+    for (const r of settled) {
+      if (r.status === 'fulfilled') {
+        pages.push(r.value);
+      } else {
+        partial = true;
+        break;
+      }
+    }
 
     const seen = new Set<number>();
     const games: SteamGameSummary[] = [];
@@ -158,6 +172,7 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
       totalCount,
       start: 0,
       games: await enrichGames(filtered),
+      partial,
     };
   });
 
@@ -176,15 +191,19 @@ async function searchPaged(
   opts: Parameters<typeof searchSteam>[0],
   pageCount: number,
 ): Promise<SteamGameSummary[]> {
-  const pages = await Promise.all(
+  // `allSettled` so a single Steam 403 in one of the rail's candidate pages
+  // doesn't take down the whole discovery payload. Rejected pages just drop;
+  // the rail renders with whatever did succeed.
+  const settled = await Promise.allSettled(
     Array.from({ length: pageCount }, (_unused, page) =>
       searchSteam({ ...opts, page }),
     ),
   );
   const seen = new Set<number>();
   const games: SteamGameSummary[] = [];
-  for (const p of pages) {
-    for (const g of p.games) {
+  for (const r of settled) {
+    if (r.status !== 'fulfilled') continue;
+    for (const g of r.value.games) {
       if (seen.has(g.appid)) continue;
       seen.add(g.appid);
       games.push(g);

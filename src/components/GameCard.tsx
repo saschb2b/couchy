@@ -261,34 +261,38 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
                 {game.releasedAt}
               </Typography>
             )}
-            {game.maxPlayers !== null && (
-              <>
-                <Box
-                  sx={{
-                    width: 2,
-                    height: 2,
-                    borderRadius: '50%',
-                    backgroundColor: 'text.secondary',
-                    opacity: 0.6,
-                    flex: '0 0 auto',
-                  }}
-                />
-                <Typography
-                  variant="caption"
-                  sx={{
-                    color: 'primary.main',
-                    fontWeight: 700,
-                    fontSize: 11,
-                    letterSpacing: '0.02em',
-                    whiteSpace: 'nowrap',
-                    flex: '0 0 auto',
-                  }}
-                  title={`Up to ${String(game.maxPlayers)} players`}
-                >
-                  {game.maxPlayers}P
-                </Typography>
-              </>
-            )}
+            {(() => {
+              const chip = playerChip(game);
+              if (chip === null) return null;
+              return (
+                <>
+                  <Box
+                    sx={{
+                      width: 2,
+                      height: 2,
+                      borderRadius: '50%',
+                      backgroundColor: 'text.secondary',
+                      opacity: 0.6,
+                      flex: '0 0 auto',
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: 'primary.main',
+                      fontWeight: 700,
+                      fontSize: 11,
+                      letterSpacing: '0.02em',
+                      whiteSpace: 'nowrap',
+                      flex: '0 0 auto',
+                    }}
+                    title={chip.title}
+                  >
+                    {chip.label}
+                  </Typography>
+                </>
+              );
+            })()}
           </Stack>
 
           <Box sx={{ height: 20, display: 'flex', alignItems: 'center' }}>
@@ -298,6 +302,31 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
       </CardActionAreaLink>
     </Box>
   );
+}
+
+/**
+ * Pick the local-player chip for the card. PCGW data takes precedence when
+ * present (structured min/max, mode list); falls back to the description-
+ * parsed `maxPlayers`. Returns `null` when neither source has a count.
+ */
+function playerChip(game: SteamGameSummary): { label: string; title: string } | null {
+  const lp = game.localPlayers;
+  if (lp !== null) {
+    const label = lp.min === lp.max ? `${String(lp.max)}P` : `${String(lp.min)}-${String(lp.max)}P`;
+    const range =
+      lp.min === lp.max
+        ? `${String(lp.max)} local`
+        : `${String(lp.min)}-${String(lp.max)} local`;
+    const modes = lp.modes.length > 0 ? `, ${lp.modes.join(' & ').toLowerCase()}` : '';
+    return { label, title: `${range}${modes}` };
+  }
+  if (game.maxPlayers !== null) {
+    return {
+      label: `${String(game.maxPlayers)}P`,
+      title: `Up to ${String(game.maxPlayers)} players`,
+    };
+  }
+  return null;
 }
 
 const SALE_GREEN = '#a5db5f';

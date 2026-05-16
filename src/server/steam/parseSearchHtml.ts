@@ -122,6 +122,7 @@ export function parseSearchHtml(html: string): SteamGameSummary[] {
       originalPriceDisplay: originalPriceText,
       href,
       maxPlayers: null,
+      localPlayers: null,
       trailerHls: null,
     });
     seen.add(appidNum);
