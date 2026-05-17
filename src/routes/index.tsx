@@ -2,13 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import { useMemo } from 'react';
 import { fetchDiscoveryRails } from '../server/fns';
 import { Hero } from '../components/Hero';
 import { MoodGrid } from '../components/MoodGrid';
 import { GameRail } from '../components/GameRail';
 import { buildSeoMeta, canonicalLink } from '../seo';
-
-const HERO_SPOTLIGHT_COUNT = 4;
+import type { SteamGameSummary } from '../server/steam/types';
 
 const HOME_TITLE = 'Couchy · What should we play tonight?';
 const HOME_DESCRIPTION =
@@ -35,11 +35,30 @@ export const Route = createFileRoute('/')({
 
 function DiscoveryPage() {
   const { rails, spotlights } = Route.useLoaderData();
-  const heroSpotlights = spotlights.slice(0, HERO_SPOTLIGHT_COUNT);
+
+  // Hero playlist: curated spotlights first (so the page opens with the
+  // editorial pick), then the rest of the rail games for "near-endless"
+  // channel-surf depth. Both filtered to clips with a trailer — the
+  // Hero is video-first now, not still-image-first.
+  const heroClips = useMemo(() => {
+    const seen = new Set<number>();
+    const out: SteamGameSummary[] = [];
+    const push = (g: SteamGameSummary) => {
+      if (g.trailerHls === null) return;
+      if (seen.has(g.appid)) return;
+      seen.add(g.appid);
+      out.push(g);
+    };
+    for (const s of spotlights) push(s);
+    for (const r of rails) {
+      for (const g of r.games) push(g);
+    }
+    return out;
+  }, [rails, spotlights]);
 
   return (
     <>
-      <Hero spotlights={heroSpotlights} />
+      <Hero clips={heroClips} />
       <Container maxWidth="xl">
         <MoodGrid />
         {rails.length === 0 && (
