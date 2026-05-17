@@ -60,12 +60,13 @@ function DiscoveryPage() {
             </Typography>
           </Box>
         )}
-        {rails.map((rail) => (
+        {rails.map((rail, i) => (
           <GameRail
             key={rail.key}
             title={rail.title}
             subtitle={rail.subtitle}
             games={rail.games}
+            featured={i === 0}
             {...(rail.steamSearchUrl !== undefined && {
               steamSearchUrl: rail.steamSearchUrl,
             })}

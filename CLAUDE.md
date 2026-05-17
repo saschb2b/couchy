@@ -11,7 +11,11 @@ TV and 1–4 controllers, deciding what to play in the next ten minutes. Every U
 and copy decision should help that group skip a doomscroll, not impress a
 designer's portfolio reviewer.
 
-The full design brief lives in `GOALS.md`. Read that file once per major task.
+The full product brief lives in `GOALS.md`. The visual + interaction design
+system lives in `DESIGN.md`. Read `GOALS.md` once per major task; read
+`DESIGN.md` before touching anything visual, before adding a new page or
+component, and any time you're tempted to add a colour, font, shadow, or
+animation.
 
 ---
 
@@ -78,6 +82,15 @@ built by a chatbot".
   (`#ffd166`) is the brand. Sale-green (`#a5db5f`) is functional. Brick-red
   (`#e0533c`) is rare and reserved for danger / a single mood. Don't add a
   fourth.
+- **No double-encoding state across multiple visual channels.** If a
+  state is already communicated by one signal (the `−N%` chip + green
+  price for *on sale*; the `SAVED` pill for *shortlisted*; a 3 px lift
+  + amber border + bottom rule for *hover*), don't *also* tint borders,
+  fills, or backgrounds to say the same thing. Strengthen the existing
+  signal instead of stacking a new one beside it. Same rule for copy:
+  if a label or H2 already says it, don't add an explanatory subtitle
+  that paraphrases. Full principle and citations in `DESIGN.md` under
+  "Less is more — encode each state once."
 - **No emoji in copy or component text** unless the user explicitly asks.
 
 ### Style targets
@@ -181,12 +194,20 @@ first.
   type-checks.
 - I added new copy: read it out loud. Does it sound like a friend writing a
   text, or like a chatbot writing a marketing page?
+- I added state-dependent styling (a tint, border, fill, animation, icon,
+  or caption that depends on `onSale`, `saved`, `active`, `error`, etc.):
+  I checked that the same state isn't already encoded by another, more
+  nuanced signal. If it is, I strengthened the existing signal rather
+  than adding mine.
 
 ---
 
 ## Files of note
 
 - `GOALS.md` — the full product/design brief. Read once per major task.
+- `DESIGN.md` — the visual + interaction design system. The positive
+  companion to this file: what the site IS, not just what it isn't. Read
+  before any visual change.
 - `src/theme.ts` — the typography, palette, and component overrides.
 - `src/server/steam/categories.ts` — the verified Steam category id table.
   Read the comment at the top before adding entries.

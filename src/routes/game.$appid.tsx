@@ -6,7 +6,8 @@ import Stack from '@mui/material/Stack';
 import Button from '@mui/material/Button';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ZoomOutMapIcon from '@mui/icons-material/ZoomOutMap';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+import type { SyntheticEvent } from 'react';
 import { fetchAppDetails } from '../server/fns';
 import { COUCH_CATEGORY_IDS } from '../server/steam/categories';
 import type { SteamAppDetails } from '../server/steam/types';
@@ -18,6 +19,10 @@ import { buildSeoMeta, canonicalLink, jsonLdScript } from '../seo';
 
 function libraryHeroUrl(appid: number): string {
   return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
+}
+
+function portraitCapsuleUrl(appid: number): string {
+  return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_600x900.jpg`;
 }
 
 /**
@@ -156,6 +161,16 @@ function GameDetailPage() {
         ].filter((p): p is string => p !== null)
       : [];
 
+  // Portrait poster — Steam doesn't ship library_600x900 for every appid
+  // (older titles, demos, some indies). One-shot fall back to the
+  // appdetails-served header image when the portrait 404s.
+  const posterFellBack = useRef(false);
+  const onPosterError = (e: SyntheticEvent<HTMLImageElement>) => {
+    if (posterFellBack.current) return;
+    posterFellBack.current = true;
+    e.currentTarget.src = data.header_image;
+  };
+
   return (
     <>
       {/* === Cinematic hero === */}
@@ -192,46 +207,85 @@ function GameDetailPage() {
           }}
         />
         <Container maxWidth="xl" sx={{ position: 'relative', py: { xs: 5, md: 8 } }}>
-          <Stack spacing={{ xs: 2, md: 3 }} sx={{ maxWidth: 1000 }}>
-            {couchCategories.length > 0 && (
-              <Stack
-                direction="row"
-                spacing={2}
-                sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-                useFlexGap
-              >
-                <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
-                <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
-                  {couchCategories.map((c) => c.description).join(' · ')}
-                </Typography>
-              </Stack>
-            )}
-            <Typography
-              variant="h1"
-              component="h1"
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={{ xs: 0, md: 5 }}
+            sx={{ alignItems: { md: 'flex-end' } }}
+          >
+            {/* Portrait poster — desktop only. Floats on the hero like a
+                movie-theatre frame, with the library_hero playing the role
+                of the still behind it. */}
+            <Box
               sx={{
-                fontSize: { xs: 44, sm: 64, md: 96 },
-                lineHeight: 0.95,
+                display: { xs: 'none', md: 'block' },
+                flex: '0 0 auto',
+                width: { md: 240, lg: 280 },
+                aspectRatio: '2 / 3',
+                overflow: 'hidden',
+                border: '1px solid',
+                borderColor: 'rgba(245, 237, 224, 0.22)',
+                backgroundColor: 'rgba(245, 237, 224, 0.04)',
               }}
             >
-              {data.name}
-            </Typography>
-            {data.developers !== undefined && data.developers.length > 0 && (
-              <Typography
-                color="text.secondary"
+              <Box
+                component="img"
+                src={portraitCapsuleUrl(data.steam_appid)}
+                alt={`${data.name} poster`}
+                loading="eager"
+                onError={onPosterError}
                 sx={{
-                  fontFamily: 'h1.fontFamily',
-                  fontStyle: 'italic',
-                  fontSize: { xs: 16, md: 18 },
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            </Box>
+
+            <Stack
+              spacing={{ xs: 2, md: 3 }}
+              sx={{ flex: 1, minWidth: 0, maxWidth: 900 }}
+            >
+              {couchCategories.length > 0 && (
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                  useFlexGap
+                >
+                  <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
+                  <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
+                    {couchCategories.map((c) => c.description).join(' · ')}
+                  </Typography>
+                </Stack>
+              )}
+              <Typography
+                variant="h1"
+                component="h1"
+                sx={{
+                  fontSize: { xs: 44, sm: 64, md: 84, lg: 96 },
+                  lineHeight: 0.95,
                 }}
               >
-                {data.developers.join(', ')}
-                {data.publishers !== undefined &&
-                  data.publishers.length > 0 &&
-                  data.publishers.join(', ') !== data.developers.join(', ') &&
-                  `. Published by ${data.publishers.join(', ')}.`}
+                {data.name}
               </Typography>
-            )}
+              {data.developers !== undefined && data.developers.length > 0 && (
+                <Typography
+                  color="text.secondary"
+                  sx={{
+                    fontFamily: 'h1.fontFamily',
+                    fontStyle: 'italic',
+                    fontSize: { xs: 16, md: 18 },
+                  }}
+                >
+                  {data.developers.join(', ')}
+                  {data.publishers !== undefined &&
+                    data.publishers.length > 0 &&
+                    data.publishers.join(', ') !== data.developers.join(', ') &&
+                    `. Published by ${data.publishers.join(', ')}.`}
+                </Typography>
+              )}
+            </Stack>
           </Stack>
         </Container>
       </Box>

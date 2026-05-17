@@ -695,12 +695,15 @@ function GameCardSkeleton() {
           from: { opacity: 0 },
           to: { opacity: 1 },
         },
+        border: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: 'background.paper',
       }}
     >
       <Box
         sx={{
           aspectRatio: '460 / 215',
-          border: '1px solid',
+          borderBottom: '1px solid',
           borderColor: 'divider',
           backgroundColor: 'rgba(245, 237, 224, 0.04)',
           // Sheen sweeps across the placeholder so the grid feels like it's
@@ -715,25 +718,18 @@ function GameCardSkeleton() {
           },
         }}
       />
-      <Stack spacing={0.75} sx={{ pt: 1.5, px: 0.25 }}>
+      <Stack spacing={0.75} sx={{ px: 1.5, py: 1.25 }}>
         <Box
           sx={{
-            height: '1.25em',
+            height: '1.3em',
             width: '70%',
             backgroundColor: 'rgba(245, 237, 224, 0.08)',
           }}
         />
         <Box
           sx={{
-            height: 11,
-            width: '40%',
-            backgroundColor: 'rgba(245, 237, 224, 0.06)',
-          }}
-        />
-        <Box
-          sx={{
             height: 14,
-            width: '30%',
+            width: '40%',
             backgroundColor: 'rgba(245, 237, 224, 0.06)',
           }}
         />
@@ -788,11 +784,10 @@ function PartyButton({ active, short, hint, onClick }: PartyButtonProps) {
         py: { xs: 1.5, md: 2 },
         px: 1,
         border: '1px solid',
-        borderColor: active ? 'primary.main' : 'divider',
-        backgroundColor: active ? 'rgba(255, 209, 102, 0.06)' : 'transparent',
-        transition: 'border-color 160ms ease, background-color 160ms ease',
+        borderColor: 'divider',
+        transition: 'border-color 160ms ease',
         '&:hover': {
-          borderColor: active ? 'primary.main' : 'rgba(245, 237, 224, 0.28)',
+          borderColor: 'rgba(245, 237, 224, 0.28)',
         },
         '&:focus-visible': {
           outline: '2px solid',
@@ -801,6 +796,12 @@ function PartyButton({ active, short, hint, onClick }: PartyButtonProps) {
         },
       }}
     >
+      {/*
+        Active state is encoded by the digit colour alone. The amber
+        digit at this size is loud enough to identify the selection
+        across the row of five; adding a border tint and bg tint would
+        be double-encoding (see DESIGN.md → "Less is more").
+      */}
       <Typography
         component="span"
         sx={{
@@ -862,6 +863,10 @@ function FilterRow({ active, label, hint, accent, onClick }: FilterRowProps) {
           outlineColor: 'primary.main',
           outlineOffset: 2,
         },
+        // Active state is the left accent bar alone. The bar is
+        // positional (outside the label) so it doesn't fight the
+        // label's primary content. Adding label-colour and weight
+        // changes on top would be double-encoding.
         '&::before': {
           content: '""',
           position: 'absolute',
@@ -873,16 +878,16 @@ function FilterRow({ active, label, hint, accent, onClick }: FilterRowProps) {
           transition: 'background-color 160ms ease',
         },
         '&:hover .filter-label': {
-          color: active ? activeColor : 'text.primary',
+          color: 'text.primary',
         },
       }}
     >
       <Typography
         className="filter-label"
         sx={{
-          fontWeight: active ? 700 : 500,
+          fontWeight: 500,
           fontSize: 15,
-          color: active ? activeColor : 'text.secondary',
+          color: 'text.secondary',
           transition: 'color 160ms ease',
           lineHeight: 1.25,
         }}

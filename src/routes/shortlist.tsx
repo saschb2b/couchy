@@ -96,7 +96,11 @@ function ShortlistCard({ item }: { item: ShortlistItem }) {
       sx={{
         position: 'relative',
         '&:hover .shortlist-remove': { opacity: 1 },
-        '&:hover .shortlist-card-image-wrap': { transform: 'translateY(-3px)' },
+        '&:hover .shortlist-card-frame': {
+          transform: 'translateY(-3px)',
+          borderColor: 'primary.main',
+        },
+        '&:hover .shortlist-card-frame::after': { opacity: 1 },
         '&:hover .shortlist-card-title': { color: 'primary.main' },
       }}
     >
@@ -113,7 +117,7 @@ function ShortlistCard({ item }: { item: ShortlistItem }) {
           position: 'absolute',
           top: 8,
           right: 8,
-          zIndex: 2,
+          zIndex: 3,
           width: 32,
           height: 32,
           color: 'common.white',
@@ -135,50 +139,77 @@ function ShortlistCard({ item }: { item: ShortlistItem }) {
         sx={{ display: 'block', color: 'inherit', textAlign: 'left' }}
       >
         <Box
-          className="shortlist-card-image-wrap"
+          className="shortlist-card-frame"
           sx={{
             position: 'relative',
-            aspectRatio: '460 / 215',
-            overflow: 'hidden',
             border: '1px solid',
             borderColor: 'divider',
-            transition: 'transform 220ms ease',
+            backgroundColor: 'background.paper',
+            transition: 'transform 220ms ease, border-color 220ms ease',
+            '&::after': {
+              content: '""',
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 2,
+              background: 'var(--mui-palette-primary-main)',
+              opacity: 0,
+              transition: 'opacity 220ms ease',
+              zIndex: 2,
+            },
           }}
         >
-          {item.capsuleImage !== null && (
-            <Box
-              component="img"
-              src={item.capsuleImage}
-              alt={item.name}
-              loading="lazy"
+          <Box
+            sx={{
+              position: 'relative',
+              aspectRatio: '460 / 215',
+              overflow: 'hidden',
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+            }}
+          >
+            {item.capsuleImage !== null && (
+              <Box
+                component="img"
+                src={item.capsuleImage}
+                alt={item.name}
+                loading="lazy"
+                sx={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
+                }}
+              />
+            )}
+          </Box>
+          <Box sx={{ px: 1.5, py: 1.25 }}>
+            <Typography
+              className="shortlist-card-title"
               sx={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
+                fontWeight: 700,
+                fontSize: 15,
+                lineHeight: 1.3,
+                letterSpacing: '-0.005em',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                transition: 'color 160ms ease',
               }}
-            />
-          )}
+              title={item.name}
+            >
+              {item.name}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontSize: 11, mt: 0.25, display: 'block' }}
+            >
+              Added {formatRelative(item.addedAt)}
+            </Typography>
+          </Box>
         </Box>
-        <Typography
-          className="shortlist-card-title"
-          sx={{
-            mt: 1.5,
-            fontWeight: 600,
-            fontSize: 15,
-            lineHeight: 1.25,
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            transition: 'color 160ms ease',
-          }}
-          title={item.name}
-        >
-          {item.name}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ fontSize: 11 }}>
-          Added {formatRelative(item.addedAt)}
-        </Typography>
       </CardActionAreaLink>
     </Box>
   );

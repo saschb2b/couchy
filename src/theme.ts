@@ -3,8 +3,8 @@ import { createTheme } from '@mui/material/styles';
 const COUCH_AMBER = '#ffd166';
 const COUCH_AMBER_DEEP = '#f5a623';
 const SALE_RED = '#e0533c';
-const BG_BASE = '#0e0c0a';
-const BG_PAPER = '#15110d';
+const BG_BASE = '#1e150d';
+const BG_PAPER = '#0c0907';
 const TEXT_PRIMARY = '#f5ede0';
 const TEXT_SECONDARY = '#9c907e';
 const HAIRLINE = 'rgba(245, 237, 224, 0.08)';
@@ -80,13 +80,21 @@ export const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          // Subtle film grain — keeps the page from feeling like a Figma export.
+          // Living-room ambient: four warm light sources (amber lamp glow
+          // top-right, brick hearth bottom-left, soft warm-tan bounce
+          // mid-left), with an edge vignette pulling the eye toward
+          // content, and the film grain overlay on top so the page never
+          // reads as a clean gradient. The vignette sits above the
+          // colour washes so corners stay grounded even where a wash
+          // brightens.
           backgroundImage: `
-            radial-gradient(1200px 600px at 80% -10%, rgba(255, 209, 102, 0.07), transparent 60%),
-            radial-gradient(900px 500px at -10% 110%, rgba(224, 83, 60, 0.05), transparent 60%),
-            url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")
+            url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+            radial-gradient(ellipse 95% 130% at 50% 50%, transparent 55%, rgba(0, 0, 0, 0.35) 100%),
+            radial-gradient(1400px 700px at 80% 0%, rgba(255, 209, 102, 0.14), transparent 62%),
+            radial-gradient(1100px 600px at 5% 100%, rgba(224, 83, 60, 0.11), transparent 62%),
+            radial-gradient(700px 500px at 15% 42%, rgba(200, 160, 110, 0.05), transparent 65%)
           `,
-          backgroundAttachment: 'fixed, fixed, fixed',
+          backgroundAttachment: 'fixed, fixed, fixed, fixed, fixed',
         },
         '::selection': {
           background: COUCH_AMBER,

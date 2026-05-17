@@ -9,8 +9,14 @@ import type { SteamGameSummary } from '../server/steam/types';
 
 interface GameCardProps {
   game: SteamGameSummary;
-  /** `rail`: fixed 256px width for horizontal scrollers. `grid`: fills its grid cell. */
-  layout?: 'rail' | 'grid';
+  /**
+   * - `rail`: fixed 288 px wide for the standard horizontal scroller.
+   * - `featured`: fixed 384 px wide for the discovery hero rail. Same meta
+   *   block; the card is ~1.3× the standard width so the artwork carries
+   *   the eye on first scroll.
+   * - `grid`: fills its grid cell, used in `/browse` and `/shortlist`.
+   */
+  layout?: 'rail' | 'featured' | 'grid';
 }
 
 interface ReviewMeta {
@@ -56,15 +62,18 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
     setShowTrailer(false);
   };
 
+  const chip = playerChip(game);
+  const railWidth = layout === 'featured' ? 384 : 288;
+
   return (
     <Box
       component="article"
       onPointerEnter={onPointerEnter}
       onPointerLeave={onPointerLeave}
       sx={{
-        ...(layout === 'rail'
-          ? { width: 256, flex: '0 0 auto' }
-          : { width: '100%' }),
+        ...(layout === 'grid'
+          ? { width: '100%' }
+          : { width: railWidth, flex: '0 0 auto' }),
         position: 'relative',
         // Mount-only fade-up. Cards keyed by appid don't re-mount on parent
         // re-renders, so this only fires for newly-arrived cards (e.g. the
@@ -74,11 +83,12 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
           from: { opacity: 0, transform: 'translateY(10px)' },
           to: { opacity: 1, transform: 'translateY(0)' },
         },
-        // Hairline that brightens on hover.
-        '&:hover .game-card-image-wrap': {
+        // The frame lifts and brightens as a single object on hover.
+        '&:hover .game-card-frame': {
           transform: 'translateY(-3px)',
+          borderColor: 'primary.main',
         },
-        '&:hover .game-card-image-wrap::after': {
+        '&:hover .game-card-frame::after': {
           opacity: 1,
         },
         '&:hover .game-card-title': {
@@ -103,16 +113,22 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
           textAlign: 'left',
         }}
       >
+        {/*
+          The card is one object: a single bordered frame enclosing the
+          artwork on top and a `background.paper` meta plinth below. The
+          plinth is what makes the card read as a contained unit rather
+          than a loose image with caption text trailing underneath.
+        */}
         <Box
-          className="game-card-image-wrap"
+          className="game-card-frame"
           sx={{
             position: 'relative',
-            aspectRatio: '460 / 215',
-            overflow: 'hidden',
             border: '1px solid',
-            borderColor: onSale ? 'rgba(165, 219, 95, 0.4)' : 'divider',
-            transition: 'transform 220ms ease',
-            // Bottom highlight on hover.
+            borderColor: 'divider',
+            backgroundColor: 'background.paper',
+            transition: 'transform 220ms ease, border-color 220ms ease',
+            // Bottom highlight on hover: a 2 px amber rule that fades in
+            // along the bottom of the whole card.
             '&::after': {
               content: '""',
               position: 'absolute',
@@ -123,182 +139,168 @@ export function GameCard({ game, layout = 'rail' }: GameCardProps) {
               background: 'var(--mui-palette-primary-main)',
               opacity: 0,
               transition: 'opacity 220ms ease',
+              zIndex: 3,
             },
           }}
         >
-          {game.capsuleImage !== null && (
-            <Box
-              component="img"
-              src={game.capsuleImage}
-              alt={game.name}
-              loading="lazy"
-              sx={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                display: 'block',
-              }}
-            />
-          )}
-          {showTrailer && game.trailerHls !== null && (
-            <Box
-              sx={{
-                position: 'absolute',
-                inset: 0,
-                opacity: 0,
-                animation: 'card-trailer-fade 320ms ease forwards',
-                '@keyframes card-trailer-fade': {
-                  from: { opacity: 0 },
-                  to: { opacity: 1 },
-                },
-              }}
-            >
-              <TrailerPlayer
-                src={game.trailerHls}
-                controls={false}
-                loop
-                muted
-                autoPlay
-              />
-            </Box>
-          )}
-          {onSale && (
-            <Box
-              sx={{
-                position: 'absolute',
-                top: 8,
-                left: 8,
-                px: 1,
-                py: 0.25,
-                backgroundColor: '#1f3308',
-                color: '#a5db5f',
-                fontFamily: 'h1.fontFamily',
-                fontStyle: 'italic',
-                fontWeight: 600,
-                fontSize: 13,
-                letterSpacing: '-0.01em',
-              }}
-            >
-              −{game.discountPercent}%
-            </Box>
-          )}
-        </Box>
-
-        {/*
-          Fixed three-row meta block. Every row has a deterministic height and
-          everything is `nowrap` + ellipsis-truncated, so cards never resize
-          based on which optional fields a particular game has. Without this,
-          a long sale price + a long date string fights for room and the date
-          wraps onto two or three lines, stretching the grid row.
-        */}
-        <Stack spacing={0.5} sx={{ pt: 1.5, px: 0.25 }}>
-          <Typography
-            className="game-card-title"
+          <Box
             sx={{
-              fontWeight: 600,
-              fontSize: 15,
-              lineHeight: 1.25,
-              height: '1.25em',
+              position: 'relative',
+              aspectRatio: '460 / 215',
               overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              transition: 'color 160ms ease',
-            }}
-            title={game.name}
-          >
-            {game.name}
-          </Typography>
-
-          <Stack
-            direction="row"
-            spacing={0.75}
-            sx={{
-              alignItems: 'center',
-              height: 16,
-              overflow: 'hidden',
-              minWidth: 0,
+              borderBottom: '1px solid',
+              borderColor: 'divider',
             }}
           >
-            {reviewMeta !== null && (
-              <Typography
-                variant="caption"
+            {game.capsuleImage !== null && (
+              <Box
+                component="img"
+                src={game.capsuleImage}
+                alt={game.name}
+                loading="lazy"
                 sx={{
-                  color: reviewMeta.color,
-                  fontWeight: 600,
-                  fontSize: 11,
-                  letterSpacing: '0.02em',
-                  whiteSpace: 'nowrap',
-                  flex: '0 0 auto',
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                  display: 'block',
                 }}
-              >
-                {reviewMeta.label.toUpperCase()}
-              </Typography>
+              />
             )}
-            {reviewMeta !== null && game.releasedAt !== null && (
+            {showTrailer && game.trailerHls !== null && (
               <Box
                 sx={{
-                  width: 2,
-                  height: 2,
-                  borderRadius: '50%',
-                  backgroundColor: 'text.secondary',
-                  opacity: 0.6,
-                  flex: '0 0 auto',
-                }}
-              />
-            )}
-            {game.releasedAt !== null && (
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  fontSize: 11,
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  minWidth: 0,
+                  position: 'absolute',
+                  inset: 0,
+                  opacity: 0,
+                  animation: 'card-trailer-fade 320ms ease forwards',
+                  '@keyframes card-trailer-fade': {
+                    from: { opacity: 0 },
+                    to: { opacity: 1 },
+                  },
                 }}
               >
-                {game.releasedAt}
-              </Typography>
+                <TrailerPlayer
+                  src={game.trailerHls}
+                  controls={false}
+                  loop
+                  muted
+                  autoPlay
+                />
+              </Box>
             )}
-            {(() => {
-              const chip = playerChip(game);
-              if (chip === null) return null;
-              return (
-                <>
-                  <Box
-                    sx={{
-                      width: 2,
-                      height: 2,
-                      borderRadius: '50%',
-                      backgroundColor: 'text.secondary',
-                      opacity: 0.6,
-                      flex: '0 0 auto',
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: 'primary.main',
-                      fontWeight: 700,
-                      fontSize: 11,
-                      letterSpacing: '0.02em',
-                      whiteSpace: 'nowrap',
-                      flex: '0 0 auto',
-                    }}
-                    title={chip.title}
-                  >
-                    {chip.label}
-                  </Typography>
-                </>
-              );
-            })()}
-          </Stack>
-
-          <Box sx={{ height: 20, display: 'flex', alignItems: 'center' }}>
-            <PriceLine game={game} />
+            {onSale && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 8,
+                  left: 8,
+                  px: 1,
+                  py: 0.25,
+                  backgroundColor: '#1f3308',
+                  color: '#a5db5f',
+                  fontFamily: 'h1.fontFamily',
+                  fontStyle: 'italic',
+                  fontWeight: 600,
+                  fontSize: 13,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                −{game.discountPercent}%
+              </Box>
+            )}
           </Box>
-        </Stack>
+
+          {/*
+            Two-row meta plinth inside the card frame.
+            Row 1: title + player-count chip on the right.
+            Row 2: review label (when present) + price line on the right.
+            Fixed heights so optional fields don't jitter the grid.
+          */}
+          <Stack spacing={0.5} sx={{ px: 1.5, py: 1.25 }}>
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                minWidth: 0,
+                height: '1.3em',
+              }}
+            >
+              <Typography
+                className="game-card-title"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: layout === 'featured' ? 16 : 15,
+                  lineHeight: 1.3,
+                  letterSpacing: '-0.005em',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  minWidth: 0,
+                  flex: '1 1 auto',
+                  transition: 'color 160ms ease',
+                }}
+                title={
+                  game.releasedAt !== null
+                    ? `${game.name} · ${game.releasedAt}`
+                    : game.name
+                }
+              >
+                {game.name}
+              </Typography>
+              {chip !== null && (
+                <Typography
+                  title={chip.title}
+                  sx={{
+                    fontFamily: 'h1.fontFamily',
+                    fontStyle: 'italic',
+                    color: 'primary.main',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    letterSpacing: '0.01em',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                    lineHeight: 1,
+                  }}
+                >
+                  {chip.label}
+                </Typography>
+              )}
+            </Stack>
+
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: 'baseline',
+                justifyContent: 'space-between',
+                height: 18,
+                minWidth: 0,
+                overflow: 'hidden',
+              }}
+            >
+              {reviewMeta !== null ? (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: reviewMeta.color,
+                    fontWeight: 600,
+                    fontSize: 11,
+                    letterSpacing: '0.04em',
+                    whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
+                  }}
+                >
+                  {reviewMeta.label.toUpperCase()}
+                </Typography>
+              ) : (
+                <Box sx={{ flex: '0 0 auto', width: 0 }} />
+              )}
+              <PriceLine game={game} />
+            </Stack>
+          </Stack>
+        </Box>
       </CardActionAreaLink>
     </Box>
   );
@@ -342,7 +344,7 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
       <Stack
         direction="row"
         spacing={1}
-        sx={{ alignItems: 'baseline', minWidth: 0, overflow: 'hidden' }}
+        sx={{ alignItems: 'baseline', minWidth: 0, overflow: 'hidden', flex: '0 0 auto' }}
       >
         {game.originalPriceDisplay !== null && (
           <Typography
@@ -374,7 +376,14 @@ function PriceLine({ game }: { game: SteamGameSummary }) {
   }
 
   return (
-    <Typography sx={{ fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>
+    <Typography
+      sx={{
+        fontWeight: 600,
+        fontSize: 13,
+        whiteSpace: 'nowrap',
+        flex: '0 0 auto',
+      }}
+    >
       {final}
     </Typography>
   );

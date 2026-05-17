@@ -15,9 +15,16 @@ interface GameRailProps {
   subtitle?: string;
   games: SteamGameSummary[];
   steamSearchUrl?: string;
+  /**
+   * Render cards at the featured (384 px wide) size instead of the standard
+   * 256 px. Reserved for the first rail on `/`: it's the discovery hero rail,
+   * larger artwork carrying the eye on first scroll. Don't apply to more
+   * than one rail on the page — the size hierarchy is the signal.
+   */
+  featured?: boolean;
 }
 
-export function GameRail({ title, subtitle, games, steamSearchUrl }: GameRailProps) {
+export function GameRail({ title, subtitle, games, steamSearchUrl, featured = false }: GameRailProps) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
 
   const scroll = (dir: 1 | -1) => {
@@ -109,14 +116,29 @@ export function GameRail({ title, subtitle, games, steamSearchUrl }: GameRailPro
           {steamSearchUrl !== undefined && (
             <Button
               size="small"
-              variant="text"
+              variant="outlined"
               href={steamSearchUrl}
               target="_blank"
               rel="noopener noreferrer"
-              endIcon={<OpenInNewIcon sx={{ fontSize: 14 }} />}
-              sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+              endIcon={<OpenInNewIcon sx={{ fontSize: 11, opacity: 0.7 }} />}
+              sx={{
+                color: 'text.secondary',
+                borderColor: 'divider',
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                py: 0.5,
+                px: 1.5,
+                minWidth: 0,
+                lineHeight: 1.2,
+                '&:hover': {
+                  borderColor: 'primary.main',
+                  color: 'primary.main',
+                  backgroundColor: 'rgba(255, 209, 102, 0.04)',
+                },
+              }}
             >
-              See all
+              BROWSE ALL
             </Button>
           )}
         </Stack>
@@ -147,7 +169,7 @@ export function GameRail({ title, subtitle, games, steamSearchUrl }: GameRailPro
         }}
       >
         {games.map((game) => (
-          <GameCard key={game.appid} game={game} />
+          <GameCard key={game.appid} game={game} layout={featured ? 'featured' : 'rail'} />
         ))}
       </Box>
     </Box>
