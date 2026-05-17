@@ -45,6 +45,15 @@ export const Route = createRootRoute({
         href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap',
       },
     ],
+    scripts: [
+      // Umami auto-tracks SPA navigations via the History API, so a single
+      // head-loaded async script covers every TanStack route.
+      {
+        async: true,
+        src: 'https://umami.saschb2b.com/script.js',
+        'data-website-id': 'c9d09f7c-888b-4c91-b17d-786b14eda960',
+      },
+    ],
   }),
   component: RootComponent,
   notFoundComponent: NotFound,
