@@ -10,6 +10,8 @@ import SkipNextIcon from '@mui/icons-material/SkipNext';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import BookmarkIcon from '@mui/icons-material/Bookmark';
+import FullscreenIcon from '@mui/icons-material/Fullscreen';
+import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import { Link } from '@tanstack/react-router';
 import { TrailerPlayer } from './TrailerPlayer';
 import { toggleShortlist } from '../lib/shortlist';
@@ -73,6 +75,7 @@ export function TvViewer({ clips }: TvViewerProps) {
   const [muted, setMuted] = useState(true);
   const [staticFlash, setStaticFlash] = useState(false);
   const [showControls, setShowControls] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   // The video player only renders post-hydration. SSR returns nothing for
   // the playback area so the unshuffled-first-clip never paints before
   // the shuffle runs.
@@ -80,6 +83,7 @@ export function TvViewer({ clips }: TvViewerProps) {
 
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const controlsTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const screenRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setOrder(shuffle(playable));
@@ -119,6 +123,33 @@ export function TvViewer({ clips }: TvViewerProps) {
     }, 3000);
   }, []);
 
+  // Browser Fullscreen API. We fullscreen the screen container itself
+  // (rather than the outer wrapper) so the CRT chrome — rounded corners,
+  // inset glass shadow, scanlines, vignette, chromatic-aberration filter
+  // — fills the viewport intact. The `:fullscreen` styles below just
+  // unclip the maxWidth/maxHeight so the element can actually grow to
+  // viewport dimensions.
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement !== null) {
+      void document.exitFullscreen();
+      return;
+    }
+    const el = screenRef.current;
+    if (el !== null) {
+      void el.requestFullscreen();
+    }
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => {
+      setIsFullscreen(document.fullscreenElement !== null);
+    };
+    document.addEventListener('fullscreenchange', onChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+    };
+  }, []);
+
   useEffect(() => {
     bumpControls();
     return () => {
@@ -147,13 +178,17 @@ export function TvViewer({ clips }: TvViewerProps) {
         e.preventDefault();
         setMuted((m) => !m);
         bumpControls();
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+        bumpControls();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => {
       window.removeEventListener('keydown', onKey);
     };
-  }, [next, prev, bumpControls]);
+  }, [next, prev, bumpControls, toggleFullscreen]);
 
   if (!hydrated) {
     return <TuningIn />;
@@ -240,6 +275,7 @@ export function TvViewer({ clips }: TvViewerProps) {
       </Box>
 
       <Box
+        ref={screenRef}
         sx={{
           position: 'relative',
           width: '100%',
@@ -256,6 +292,17 @@ export function TvViewer({ clips }: TvViewerProps) {
           // Pairs with the radial vignette below for a compounded effect.
           boxShadow:
             'inset 0 0 140px 24px rgba(0,0,0,0.55), inset 0 0 14px rgba(0,0,0,0.4)',
+          // Browser fullscreen: unclip the size caps so the element can
+          // grow to viewport dimensions. CRT chrome (rounded corners,
+          // glass shadow, scanlines, aberration) is kept intact — the
+          // whole tube fills the screen, looking like a CRT in a dark
+          // room rather than a flat fullscreen video.
+          '&:fullscreen': {
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+            width: '100vw',
+            height: '100vh',
+          },
         }}
       >
         {/* Video gets the chromatic-aberration filter via its wrapper.
@@ -502,6 +549,16 @@ export function TvViewer({ clips }: TvViewerProps) {
               </Link>
               <CtrlButton aria-label="Next channel" onClick={next}>
                 <SkipNextIcon sx={{ fontSize: 22 }} />
+              </CtrlButton>
+              <CtrlButton
+                aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                onClick={toggleFullscreen}
+              >
+                {isFullscreen ? (
+                  <FullscreenExitIcon sx={{ fontSize: 22 }} />
+                ) : (
+                  <FullscreenIcon sx={{ fontSize: 22 }} />
+                )}
               </CtrlButton>
             </Stack>
           </Stack>

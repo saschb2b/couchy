@@ -158,10 +158,10 @@ export function Hero({ clips }: HeroProps) {
         minHeight: { xs: 560, md: 680 },
         display: 'flex',
         alignItems: 'flex-end',
-        mb: { xs: 8, md: 12 },
         // Small breathing margin so the CRT corners curve against the
         // page bg (the warm-cocoa stage shows in the gaps, like a TV
-        // mounted in a wall).
+        // mounted in a wall). Bottom margin is set by the route so
+        // the marquee underneath can sit tight against the Hero.
         mx: { xs: 1, md: 2 },
         mt: { xs: 1, md: 2 },
         // CRT-glass corner curve. Matches /tv's borderRadius scale; same
@@ -515,7 +515,6 @@ function HeroFallback() {
         minHeight: { xs: 460, md: 580 },
         display: 'flex',
         alignItems: 'center',
-        mb: { xs: 8, md: 12 },
         borderBottom: '1px solid',
         borderColor: 'divider',
       }}

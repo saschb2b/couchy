@@ -58,7 +58,9 @@ function DiscoveryPage() {
 
   return (
     <>
-      <Hero clips={heroClips} />
+      <Box sx={{ mb: { xs: 8, md: 12 } }}>
+        <Hero clips={heroClips} />
+      </Box>
       <Container maxWidth="xl">
         <MoodGrid />
         {rails.length === 0 && (

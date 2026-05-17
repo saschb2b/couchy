@@ -5,6 +5,7 @@ import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
+import LiveTvIcon from '@mui/icons-material/LiveTv';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useShortlist } from '../lib/useShortlist';
 
@@ -156,6 +157,19 @@ export function AppShell({ children }: AppShellProps) {
               </HeaderTab>
               <HeaderTab active={isTv}>
                 <Link to="/tv" style={TAB_LINK_STYLE}>
+                  {/* Amber LiveTv icon as the only signal that TV is a
+                      content destination rather than a peer tab. The
+                      colour alone does the work; no pulse, no badge,
+                      no second encoding. */}
+                  <LiveTvIcon
+                    aria-hidden
+                    sx={{
+                      fontSize: 16,
+                      mr: 1,
+                      color: 'primary.main',
+                      flex: '0 0 auto',
+                    }}
+                  />
                   <TabLabel>TV</TabLabel>
                 </Link>
               </HeaderTab>
