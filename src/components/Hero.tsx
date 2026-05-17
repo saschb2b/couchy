@@ -35,6 +35,19 @@ function libraryHeroUrl(appid: number): string {
   return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
 }
 
+function shuffle<T>(arr: readonly T[]): T[] {
+  const out = arr.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = out[i];
+    const b = out[j];
+    if (a === undefined || b === undefined) continue;
+    out[i] = b;
+    out[j] = a;
+  }
+  return out;
+}
+
 export function Hero({ clips }: HeroProps) {
   // Clips without artwork *or* trailers are useless to a hero. Trailer
   // is preferred but `capsuleImage` is the still-image fallback.
@@ -46,16 +59,27 @@ export function Hero({ clips }: HeroProps) {
     [clips],
   );
 
+  // Initial order matches input (SSR-safe). On mount we re-shuffle the
+  // whole playlist so each visit gets a different opener. There's a
+  // brief flash as the SSR-rendered lead crossfades to the shuffled
+  // lead, which we accept — the curated spotlight pool is small enough
+  // that the "preserved lead" was always the same game (Stardew most
+  // days), so pinning it added repetition instead of curation.
+  const [order, setOrder] = useState<SteamGameSummary[]>(playable);
   const [idx, setIdx] = useState(0);
   const [muted, setMuted] = useState(true);
   const [paused, setPaused] = useState(false);
   const [progress, setProgress] = useState(0);
   const startedAtRef = useRef(0);
 
+  useEffect(() => {
+    setOrder(shuffle(playable));
+  }, [playable]);
+
   const advance = useCallback(() => {
-    if (playable.length === 0) return;
-    setIdx((i) => (i + 1) % playable.length);
-  }, [playable.length]);
+    if (order.length === 0) return;
+    setIdx((i) => (i + 1) % order.length);
+  }, [order.length]);
 
   // Click anywhere on the Hero unmutes — the TikTok / Reels pattern,
   // matched to /tv. Skip the unmute when the click lands on an actual
@@ -80,7 +104,7 @@ export function Hero({ clips }: HeroProps) {
   // they were engaged, so giving them another full window when they
   // un-engage is the right behaviour).
   useEffect(() => {
-    if (paused || playable.length <= 1) return undefined;
+    if (paused || order.length <= 1) return undefined;
     startedAtRef.current = performance.now();
     setProgress(0);
     let raf = 0;
@@ -98,18 +122,18 @@ export function Hero({ clips }: HeroProps) {
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [idx, paused, playable.length, advance]);
+  }, [idx, paused, order.length, advance]);
 
   // Pre-load the next clip's library_hero so the crossfade is seamless.
   useEffect(() => {
-    if (playable.length <= 1) return;
-    const next = playable[(idx + 1) % playable.length];
+    if (order.length <= 1) return;
+    const next = order[(idx + 1) % order.length];
     if (next === undefined) return;
     const img = new Image();
     img.src = libraryHeroUrl(next.appid);
-  }, [idx, playable]);
+  }, [idx, order]);
 
-  const current = playable[idx % Math.max(1, playable.length)];
+  const current = order[idx % Math.max(1, order.length)];
 
   if (current === undefined) {
     return <HeroFallback />;
@@ -427,26 +451,7 @@ export function Hero({ clips }: HeroProps) {
         maxWidth="xl"
         sx={{ position: 'relative', zIndex: 3, py: { xs: 6, md: 10 } }}
       >
-        <Stack spacing={{ xs: 3, md: 4 }} sx={{ maxWidth: 880 }}>
-          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 36,
-                height: 1,
-                backgroundColor: 'primary.main',
-              }}
-            />
-            <Typography
-              variant="overline"
-              sx={{
-                color: 'primary.main',
-                fontWeight: 700,
-              }}
-            >
-              Tonight on Steam
-            </Typography>
-          </Stack>
-
+        <Stack spacing={{ xs: 4, md: 5 }} sx={{ maxWidth: 880 }}>
           <Typography
             variant="h1"
             component="h1"
@@ -463,31 +468,12 @@ export function Hero({ clips }: HeroProps) {
             play tonight?
           </Typography>
 
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{
-              fontFamily: 'h1.fontFamily',
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: { xs: 18, md: 22 },
-              maxWidth: 620,
-              lineHeight: 1.4,
-            }}
-          >
-            Games worth firing up when friends are over and the controllers
-            are already on the table.
-          </Typography>
-
           <PlayerCountSelector />
 
           <Stack
             direction={{ xs: 'column', sm: 'row' }}
             spacing={2}
-            sx={{
-              pt: { xs: 1, md: 2 },
-              alignItems: { sm: 'center' },
-            }}
+            sx={{ alignItems: { sm: 'center' } }}
           >
             <ButtonLink
               to="/game/$appid"
@@ -535,18 +521,7 @@ function HeroFallback() {
       }}
     >
       <Container maxWidth="xl">
-        <Stack spacing={3} sx={{ maxWidth: 880 }}>
-          <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }}
-            />
-            <Typography
-              variant="overline"
-              sx={{ color: 'primary.main', fontWeight: 700 }}
-            >
-              Tonight on Steam
-            </Typography>
-          </Stack>
+        <Stack spacing={{ xs: 4, md: 5 }} sx={{ maxWidth: 880 }}>
           <Typography
             variant="h1"
             component="h1"
@@ -557,21 +532,6 @@ function HeroFallback() {
               we
             </Box>{' '}
             play tonight?
-          </Typography>
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{
-              fontFamily: 'h1.fontFamily',
-              fontStyle: 'italic',
-              fontWeight: 400,
-              fontSize: { xs: 18, md: 22 },
-              maxWidth: 620,
-              lineHeight: 1.4,
-            }}
-          >
-            Games worth firing up when friends are over and the controllers
-            are already on the table.
           </Typography>
           <PlayerCountSelector />
         </Stack>

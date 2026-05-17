@@ -340,9 +340,12 @@ reaching for one of these "for variety," ask whether you're cheapening it.
   The only true circle on the page. Don't reuse it as a generic separator
   or status indicator.
 - **The 36 × 1 px rule + overline pair.** A short amber horizontal line
-  followed by an overline label. Used as the hero's "Tonight on Steam"
-  eyebrow. If you want this on another section, push back: it's a hero
-  gesture.
+  followed by an overline label. Used as the section eyebrow on the
+  `/browse`, `/shortlist`, and detail-page hero. Originally on the
+  discovery hero but dropped per "Less is more": there it paraphrased
+  the AppBar wordmark (`Couchy · Steam couch picks` → `TONIGHT ON
+  STEAM`). The pattern still earns its place on the inner pages where
+  it names a section that isn't otherwise labelled.
 - **The italic small label.** The hero's "On the couch tonight:" sits in
   Fraunces italic at 14–16 px next to the player-count buttons. This is
   the pattern for any label that needs voice rather than chrome.
@@ -517,12 +520,35 @@ should justify itself against those two.
 
 ### Discovery hero
 
-Full-bleed background image with a crossfade to a trailer video after
-600 ms, a top-down dark gradient + amber radial wash on top, the eyebrow
-pair, an H1 with one italic accent word, the display-italic caption, the
-player-count selector, and the primary/outlined CTA pair. There is *one*
-discovery hero. Other pages don't get this treatment; they get a page H1
-in a `<Container>` or the detail-page poster pattern below.
+Full-bleed (with a small margin so the CRT corners curve against the
+page bg), playing the same trailer playlist as `/tv` with the full CRT
+visual treatment — rounded corners, inset glass shadow, scanlines with
+drift, phosphor vignette, SVG chromatic aberration on the video,
+muted-by-default with the TAP-FOR-SOUND pill / click-to-unmute. The
+editorial overlay is **three blocks only** (less is more):
+
+1. **H1** — `What should *we* play tonight?` with the italic-`we`
+   accent. The single italic-accent-on-a-word headline trick in the
+   site; cloning it elsewhere cheapens the original.
+2. **`PlayerCountSelector`** — the `On the couch tonight: 2 / 3 / 4 / 5+`
+   chip group. Each chip deep-links to `/browse?party=N`.
+3. **CTA pair** — `Start with X` (contained, primary; X is the current
+   spotlight) + `Browse the catalog` (outlined, secondary).
+
+No section eyebrow here. No tagline. Both paraphrased the surrounding
+context (AppBar wordmark + H1 itself) and added visual blocks without
+new information. The H1 carries the brand voice alone.
+
+12 s rotation timer driven by `requestAnimationFrame` so we can also
+fill a 2 px amber progress bar pinned at the bottom of the Hero.
+Hovering pauses the timer (progress freezes via `transition: 'none'`)
+without pausing the trailer; mouse-leave re-arms a fresh window.
+Trailer `onEnded` respects the pause too — a short clip won't
+force-advance while the user is engaged.
+
+There is *one* discovery hero. Other pages don't get this treatment;
+they get a page H1 in a `<Container>` or the detail-page poster
+pattern below.
 
 See: `Hero.tsx`.
 
