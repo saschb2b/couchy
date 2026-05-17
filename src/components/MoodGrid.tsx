@@ -17,13 +17,16 @@ interface Mood {
   accent: string;
 }
 
+// Icons take `fontSize: inherit` so the wrapper Box can size them
+// responsively (24 px on phones, 32 px on larger viewports) without
+// duplicating the size at the call site.
 const MOODS: Mood[] = [
   {
     slug: 'party',
     title: 'Loud & silly',
     blurb: 'Easy to learn, impossible to play quietly.',
     hint: 'Party-friendly',
-    icon: <CelebrationIcon sx={{ fontSize: 32 }} />,
+    icon: <CelebrationIcon sx={{ fontSize: 'inherit' }} />,
     accent: '#ffd166',
   },
   {
@@ -31,7 +34,7 @@ const MOODS: Mood[] = [
     title: 'Plan & betray',
     blurb: 'For nights where someone insists on reading the rulebook.',
     hint: 'Strategy & co-op planning',
-    icon: <PsychologyIcon sx={{ fontSize: 32 }} />,
+    icon: <PsychologyIcon sx={{ fontSize: 'inherit' }} />,
     accent: '#7ad6ff',
   },
   {
@@ -39,7 +42,7 @@ const MOODS: Mood[] = [
     title: 'Co-op story',
     blurb: 'A campaign you play through together.',
     hint: 'Story campaigns',
-    icon: <AutoStoriesIcon sx={{ fontSize: 32 }} />,
+    icon: <AutoStoriesIcon sx={{ fontSize: 'inherit' }} />,
     accent: '#a5db5f',
   },
   {
@@ -47,7 +50,7 @@ const MOODS: Mood[] = [
     title: 'Versus',
     blurb: 'Brawlers and party fighters. Somebody has to lose.',
     hint: 'Versus & brawlers',
-    icon: <SportsKabaddiIcon sx={{ fontSize: 32 }} />,
+    icon: <SportsKabaddiIcon sx={{ fontSize: 'inherit' }} />,
     accent: '#e0533c',
   },
 ];
@@ -80,6 +83,9 @@ export function MoodGrid() {
         <Typography
           color="text.secondary"
           sx={{
+            // Caption is editorial voice — hide on xs where every line
+            // costs real estate, keep on sm+ where it sits beside the H2.
+            display: { xs: 'none', sm: 'block' },
             fontFamily: 'h1.fontFamily',
             fontStyle: 'italic',
             fontSize: { xs: 16, md: 18 },
@@ -96,7 +102,7 @@ export function MoodGrid() {
           display: 'grid',
           gap: { xs: 1.5, md: 2 },
           gridTemplateColumns: {
-            xs: 'repeat(1, minmax(0, 1fr))',
+            xs: 'repeat(2, minmax(0, 1fr))',
             sm: 'repeat(2, minmax(0, 1fr))',
             md: 'repeat(4, minmax(0, 1fr))',
           },
@@ -132,8 +138,8 @@ export function MoodGrid() {
               }}
               sx={{
                 display: 'block',
-                p: { xs: 3, md: 4 },
-                minHeight: { xs: 200, md: 280 },
+                p: { xs: 2, md: 4 },
+                minHeight: { xs: 130, md: 280 },
                 position: 'relative',
                 color: 'inherit',
               }}
@@ -146,7 +152,15 @@ export function MoodGrid() {
                   position: 'relative',
                 }}
               >
-                <Box sx={{ color: mood.accent, opacity: 0.85, mb: 4 }}>
+                <Box
+                  sx={{
+                    color: mood.accent,
+                    opacity: 0.85,
+                    mb: { xs: 1.5, md: 4 },
+                    fontSize: { xs: 24, md: 32 },
+                    lineHeight: 1,
+                  }}
+                >
                   {mood.icon}
                 </Box>
 
@@ -156,40 +170,45 @@ export function MoodGrid() {
                     component="span"
                     sx={{
                       display: 'block',
-                      mb: 1.5,
-                      fontSize: { xs: 26, md: 30 },
+                      mb: { xs: 0, sm: 1.5 },
+                      fontSize: { xs: 18, sm: 26, md: 30 },
                       lineHeight: 1.05,
                     }}
                   >
                     {mood.title}
                   </Typography>
-                  <Typography
-                    color="text.secondary"
-                    sx={{
-                      fontSize: 14,
-                      mb: 2,
-                      lineHeight: 1.5,
-                    }}
-                  >
-                    {mood.blurb}
-                  </Typography>
-                  <Box
-                    className="mood-rule"
-                    sx={{
-                      width: 40,
-                      height: 1,
-                      background: 'rgba(245, 237, 224, 0.18)',
-                      mb: 1.5,
-                      transition: 'width 280ms ease, background 280ms ease',
-                    }}
-                  />
-                  <Typography
-                    variant="overline"
-                    color="text.secondary"
-                    sx={{ display: 'block', fontSize: 10 }}
-                  >
-                    {mood.hint}
-                  </Typography>
+                  {/* Blurb, rule, hint paraphrase or decorate the title.
+                      Hide on xs where every vertical pixel matters; keep
+                      on sm+ where they add editorial dimension. */}
+                  <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                    <Typography
+                      color="text.secondary"
+                      sx={{
+                        fontSize: 14,
+                        mb: 2,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {mood.blurb}
+                    </Typography>
+                    <Box
+                      className="mood-rule"
+                      sx={{
+                        width: 40,
+                        height: 1,
+                        background: 'rgba(245, 237, 224, 0.18)',
+                        mb: 1.5,
+                        transition: 'width 280ms ease, background 280ms ease',
+                      }}
+                    />
+                    <Typography
+                      variant="overline"
+                      color="text.secondary"
+                      sx={{ display: 'block', fontSize: 10 }}
+                    >
+                      {mood.hint}
+                    </Typography>
+                  </Box>
                 </Box>
               </Stack>
             </CardActionAreaLink>

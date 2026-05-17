@@ -6,6 +6,8 @@ import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
+import ExploreIcon from '@mui/icons-material/Explore';
+import BookmarkIcon from '@mui/icons-material/Bookmark';
 import { Link, useRouterState } from '@tanstack/react-router';
 import { useShortlist } from '../lib/useShortlist';
 
@@ -20,6 +22,19 @@ const TAB_LINK_STYLE: CSSProperties = {
   alignItems: 'center',
   height: '100%',
   paddingInline: 14,
+};
+
+// Tighter padding so three icon tabs fit comfortably next to the
+// wordmark on a 320 px viewport.
+const MOBILE_ICON_LINK_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  color: 'inherit',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  height: '100%',
+  paddingInline: 12,
+  minWidth: 44,
 };
 
 // Active-state pseudo-element. Single signal — a 2 px amber rule across
@@ -100,7 +115,85 @@ export function AppShell({ children }: AppShellProps) {
 
             <Box sx={{ flex: 1 }} />
 
-            {/* Primary tabs */}
+            {/* Mobile primary tabs — icon-only versions of Browse, TV,
+                Saved. Discover is reachable by clicking the wordmark, so
+                it's omitted here. About stays desktop-only (low-priority
+                utility, not worth a phone-viewport slot). */}
+            <Stack
+              direction="row"
+              sx={{
+                display: { xs: 'flex', sm: 'none' },
+                height: 64,
+                gap: 0,
+              }}
+            >
+              <HeaderTab active={isBrowse}>
+                <Link
+                  to="/browse"
+                  search={{
+                    mood: 'all',
+                    sort: 'topsellers',
+                    specials: false,
+                    party: 0,
+                    pageCount: 1,
+                  }}
+                  aria-label="Browse"
+                  style={MOBILE_ICON_LINK_STYLE}
+                >
+                  <ExploreIcon sx={{ fontSize: 22 }} />
+                </Link>
+              </HeaderTab>
+              <HeaderTab active={isTv}>
+                <Link
+                  to="/tv"
+                  aria-label="TV"
+                  style={MOBILE_ICON_LINK_STYLE}
+                >
+                  <LiveTvIcon sx={{ fontSize: 22, color: 'primary.main' }} />
+                </Link>
+              </HeaderTab>
+              <HeaderTab active={isSaved}>
+                <Link
+                  to="/shortlist"
+                  aria-label={
+                    shortlistCount > 0
+                      ? `Saved (${String(shortlistCount)})`
+                      : 'Saved'
+                  }
+                  style={MOBILE_ICON_LINK_STYLE}
+                >
+                  <Box sx={{ position: 'relative', display: 'inline-flex' }}>
+                    <BookmarkIcon sx={{ fontSize: 22 }} />
+                    {shortlistCount > 0 && (
+                      <Box
+                        component="span"
+                        sx={{
+                          position: 'absolute',
+                          top: -4,
+                          right: -8,
+                          minWidth: 16,
+                          height: 16,
+                          paddingInline: 0.5,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          backgroundColor: 'primary.main',
+                          color: 'background.default',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {shortlistCount}
+                      </Box>
+                    )}
+                  </Box>
+                </Link>
+              </HeaderTab>
+            </Stack>
+
+            {/* Desktop primary tabs */}
             <Stack
               direction="row"
               sx={{

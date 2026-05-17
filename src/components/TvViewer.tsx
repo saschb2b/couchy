@@ -3,6 +3,7 @@ import Box from '@mui/material/Box';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
+import useMediaQuery from '@mui/material/useMediaQuery';
 import VolumeOffIcon from '@mui/icons-material/VolumeOff';
 import VolumeUpIcon from '@mui/icons-material/VolumeUp';
 import SkipPreviousIcon from '@mui/icons-material/SkipPrevious';
@@ -70,6 +71,14 @@ export function TvViewer({ clips }: TvViewerProps) {
     [clips],
   );
 
+  // Portrait-mobile viewport detection. Used to switch the layout from
+  // "centered black wrapper around a 16:9 player" to "16:9 player at the
+  // top + scroll-friendly content panel below." Avoids the all-too-common
+  // tiny-letterboxed-video-on-a-phone problem.
+  const isPortraitMobile = useMediaQuery(
+    '(max-width: 640px) and (orientation: portrait)',
+  );
+
   const [order, setOrder] = useState<TvClip[]>(playable);
   const [idx, setIdx] = useState(0);
   const [muted, setMuted] = useState(true);
@@ -129,15 +138,41 @@ export function TvViewer({ clips }: TvViewerProps) {
   // — fills the viewport intact. The `:fullscreen` styles below just
   // unclip the maxWidth/maxHeight so the element can actually grow to
   // viewport dimensions.
+  //
+  // On mobile we also best-effort lock to landscape after entering
+  // fullscreen — that's the YouTube pattern (tap fullscreen, phone
+  // flips to landscape). Android Chrome / Firefox honour the lock; iOS
+  // Safari doesn't expose `screen.orientation.lock` at all so the user
+  // has to rotate manually. The defensive try/catch handles both.
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement !== null) {
       void document.exitFullscreen();
+      // `unlock` is typed in this project's TS lib; iOS Safari still
+      // throws at runtime since it doesn't ship the Screen Orientation
+      // API, so wrap in try/catch.
+      try {
+        window.screen.orientation.unlock();
+      } catch {
+        /* unsupported — fine. */
+      }
       return;
     }
     const el = screenRef.current;
-    if (el !== null) {
-      void el.requestFullscreen();
-    }
+    if (el === null) return;
+    el.requestFullscreen()
+      .then(() => {
+        // `lock` isn't in this project's TS lib (`unlock` is — asymmetric);
+        // hand-type the cast and call defensively.
+        const orientation = window.screen.orientation as ScreenOrientation & {
+          lock(orientation: string): Promise<void>;
+        };
+        try {
+          orientation.lock('landscape').catch(() => undefined);
+        } catch {
+          /* unsupported (iOS Safari) — user rotates manually. */
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -225,8 +260,11 @@ export function TvViewer({ clips }: TvViewerProps) {
         width: '100%',
         minHeight: 'calc(100vh - 64px)',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        flexDirection: isPortraitMobile && !isFullscreen ? 'column' : 'row',
+        alignItems:
+          isPortraitMobile && !isFullscreen ? 'stretch' : 'center',
+        justifyContent:
+          isPortraitMobile && !isFullscreen ? 'flex-start' : 'center',
         backgroundColor: '#000',
         cursor: muted ? 'pointer' : showControls ? 'auto' : 'none',
         overflow: 'hidden',
@@ -410,7 +448,10 @@ export function TvViewer({ clips }: TvViewerProps) {
         </Typography>
 
         {/* Lower-third: title + player label always visible, controls
-            fade after 3 s idle. */}
+            fade after 3 s idle. Hidden on mobile portrait (non-fullscreen)
+            where the external `MobileTvPanel` carries the info + controls
+            instead — overlaying a 56-inch lower-third on a 219 px-tall
+            phone player would eat the whole picture. */}
         <Box
           sx={{
             position: 'absolute',
@@ -422,6 +463,8 @@ export function TvViewer({ clips }: TvViewerProps) {
             background:
               'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.8) 100%)',
             zIndex: 4,
+            display:
+              isPortraitMobile && !isFullscreen ? 'none' : 'block',
           }}
         >
           <Stack
@@ -640,6 +683,141 @@ export function TvViewer({ clips }: TvViewerProps) {
           />
         )}
       </Box>
+
+      {/* Mobile portrait info + controls panel. Lives below the 16:9
+          player as a stacked sibling — always visible (no auto-hide),
+          tap-friendly (full-size buttons), no overlay obscuring the
+          trailer. Falls away in fullscreen so the landscape-locked
+          player owns the screen. */}
+      {isPortraitMobile && !isFullscreen && (
+        <Stack
+          spacing={2}
+          sx={{
+            flex: 1,
+            padding: 2.5,
+            backgroundColor: '#000',
+            color: 'text.primary',
+            // The outer wrapper's onClick handler would otherwise treat
+            // any click on the panel as "tap to unmute," which would
+            // fight with the panel's own buttons.
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <Box>
+            <Typography
+              variant="overline"
+              sx={{
+                color: 'primary.main',
+                display: 'block',
+                fontWeight: 700,
+                letterSpacing: '0.18em',
+                mb: 0.5,
+              }}
+            >
+              Now playing
+            </Typography>
+            <Typography
+              sx={{
+                fontFamily: 'h1.fontFamily',
+                fontStyle: 'italic',
+                fontWeight: 600,
+                fontSize: 24,
+                lineHeight: 1.1,
+                letterSpacing: '-0.02em',
+              }}
+            >
+              {current.name}
+            </Typography>
+            {playerLabel(current) !== null && (
+              <Typography
+                sx={{
+                  mt: 0.5,
+                  color: 'primary.main',
+                  fontFamily: 'h1.fontFamily',
+                  fontStyle: 'italic',
+                  fontWeight: 700,
+                  fontSize: 14,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                {playerLabel(current)} on the couch
+              </Typography>
+            )}
+          </Box>
+
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <CtrlButton aria-label="Previous channel" onClick={prev}>
+              <SkipPreviousIcon sx={{ fontSize: 22 }} />
+            </CtrlButton>
+            <CtrlButton
+              aria-label={muted ? 'Unmute' : 'Mute'}
+              onClick={() => {
+                setMuted((m) => !m);
+              }}
+            >
+              {muted ? (
+                <VolumeOffIcon sx={{ fontSize: 22 }} />
+              ) : (
+                <VolumeUpIcon sx={{ fontSize: 22 }} />
+              )}
+            </CtrlButton>
+            <CtrlButton
+              aria-label={saved ? 'Saved to shortlist' : 'Save to shortlist'}
+              emphasized={saved}
+              onClick={() => {
+                toggleShortlist({
+                  appid: current.appid,
+                  name: current.name,
+                  capsuleImage: current.capsuleImage,
+                });
+              }}
+            >
+              {saved ? (
+                <BookmarkIcon sx={{ fontSize: 22 }} />
+              ) : (
+                <BookmarkBorderIcon sx={{ fontSize: 22 }} />
+              )}
+            </CtrlButton>
+            <CtrlButton aria-label="Next channel" onClick={next}>
+              <SkipNextIcon sx={{ fontSize: 22 }} />
+            </CtrlButton>
+            <Box sx={{ flex: 1 }} />
+            <CtrlButton
+              aria-label="Fullscreen (locks to landscape on supported devices)"
+              onClick={toggleFullscreen}
+              emphasized
+            >
+              <FullscreenIcon sx={{ fontSize: 22 }} />
+            </CtrlButton>
+          </Stack>
+
+          <Link
+            to="/game/$appid"
+            params={{ appid: String(current.appid) }}
+            style={{
+              textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 6,
+              paddingInline: 14,
+              paddingBlock: 12,
+              border: '1px solid var(--mui-palette-primary-main)',
+              color: 'var(--mui-palette-primary-main)',
+              fontWeight: 700,
+              fontSize: 12,
+              letterSpacing: '0.14em',
+              textTransform: 'uppercase',
+              boxSizing: 'border-box',
+            }}
+          >
+            More info
+            <OpenInNewIcon sx={{ fontSize: 14 }} />
+          </Link>
+        </Stack>
+      )}
     </Box>
   );
 }
