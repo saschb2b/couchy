@@ -209,6 +209,13 @@ The theme sets `shape.borderRadius: 4`, but actual components override to
 (`borderRadius: 999`) are forbidden by CLAUDE.md. The site's geometry is
 square; any rounded thing should look like it's *barely* rounded, not soft.
 
+**One documented exception:** the `/tv` viewer's screen container uses
+14 / 20 / 28 px (xs / sm / md) to evoke the convex glass of a real CRT
+tube. The CRT illusion needs the rounded corners; without them the
+"screen" reads as a flat rectangle with scanlines pasted on. The
+exception is page-scoped; don't replicate the rounding on cards,
+buttons, or anything outside `TvViewer.tsx`.
+
 ### Glass is a legibility tool, not a style
 
 `backdrop-filter: blur(...)` appears in exactly four places, all for the
@@ -221,6 +228,7 @@ photography. Don't add a fifth without justifying the legibility need.
 | `SAVED` pill on card artwork                | `rgba(8, 6, 5, 0.72)` + `blur(8px)`                    |
 | Shortlist / remove icon-buttons on the card | `rgba(8, 6, 5, 0.65)` + `blur(6px)`                    |
 | Screenshot zoom-icon overlay                | `rgba(8, 6, 5, 0.65)` + `blur(6px)`                    |
+| `/tv` channel chip + control buttons        | `rgba(0,0,0,0.4)` + `blur(4–6px)`                      |
 
 Don't apply backdrop blur to flat cards (they sit on the body wash, not
 imagery), to modals (we don't have any), or as decoration.
@@ -540,6 +548,94 @@ This is the only place two pieces of Steam art layer over each other.
 The effect is "movie theatre frame": still behind, poster in front.
 
 See: `src/routes/game.$appid.tsx`.
+
+### `/tv` (channel-surf viewer)
+
+A full-page video viewer that plays Steam trailers back-to-back with a
+retro-CRT visual language. Meant to be left open and channel-surfed —
+fun to discover what's on, easy to save anything that catches the eye.
+
+Structure:
+
+- **16:9 video frame**, centred in a `#000` page, `maxWidth: 1600` and
+  `maxHeight: calc(100vh - 96px)`. The frame is bordered only by the
+  black page; no card chrome, no glass.
+- **`TrailerPlayer`** fills the frame, autoplays muted, advances on
+  `onEnded` and `onError` so a broken trailer doesn't stick.
+- **CRT-glass curvature**: the screen container has `borderRadius`
+  14 / 20 / 28 px (xs / sm / md) plus a compounded `inset` box-shadow
+  (`inset 0 0 140px 24px rgba(0,0,0,0.55), inset 0 0 14px rgba(0,0,0,0.4)`)
+  that simulates the way light dims at the edges of a convex tube.
+- **Chromatic aberration**: an inline SVG filter (`#tv-rgb`) splits the
+  red and blue channels of the video by ±2 px and recomposes via
+  screen-blend. The filter is applied to the **video wrapper only**, not
+  to overlays — the chrome is "in front of the glass," not "filtered
+  through it." Applies uniformly across the frame (a true edge-only
+  shader would need WebGL); 2 px is enough to register as fringing
+  without making text unreadable.
+- **Scanline overlay**: `repeating-linear-gradient(0deg, rgba(0,0,0,0.18)
+  0 1px, transparent 1px 3px)` for 1 px dark lines every 3 px, with a
+  slow 8 s `background-position` drift to mimic vertical-sync roll.
+- **Phosphor vignette**: `radial-gradient(ellipse 95% 95% at 50% 50%,
+  transparent 45%, rgba(0,0,0,0.65) 100%)` — heavier than the body wash's
+  vignette so it compounds with the inset glass shadow.
+- **Station-ID bug** top-left: a translucent "Couchy" wordmark in
+  Fraunces italic at 55 % opacity, the same kind of corner watermark
+  every 90s/2000s cable channel had on screen during broadcast (MTV's
+  M, CNN's logo). No background, no animation, no border. Functions as
+  the in-frame brand identifier while the AppBar wordmark above it is
+  the page-chrome identifier. Don't use a `REC` indicator here: this is
+  a channel view, not a recording.
+- **Channel readout** top-right: `CH 042`-style label derived from the
+  current game's appid (`(appid * 37) % 998 + 1`), Fraunces italic amber
+  on a glass chip. The number is deterministic per game so a savvy user
+  could recognise it on repeat visits.
+- **Lower-third info bar**: gradient from transparent at the top to
+  `rgba(0,0,0,0.8)` at the bottom. Contains "Now playing" eyebrow + game
+  title (Fraunces italic, large) + player-count line ("2-4 players on
+  the couch"). Always visible, even when controls fade.
+- **Controls row**: Prev / Mute / Save / More-info / Next. The
+  `More info` button is a small amber-bordered allcaps link to the
+  detail page. Controls auto-fade after 3 s idle; the cursor hides with
+  them. Pointer-move brings them back.
+- **`TAP FOR SOUND` affordance**: a centred pill (Fraunces italic on a
+  glass plinth, gentle 2.4 s pulse) is **persistently visible whenever
+  the page is muted**. Single-click anywhere on the screen unmutes; the
+  pill disappears the instant audio is on. Cursor is `pointer` while
+  muted to reinforce the click affordance. This is the TikTok / Reels
+  pattern: browser autoplay policy forces a muted start, so the user
+  has to be *told* they can unmute, loudly. It looks like double-
+  encoding (the missing audio + the pill + the muted icon in the
+  controls all say "muted") but it isn't: silence isn't a perceived
+  signal until you expect sound, so we promote the muted-state
+  encoding to something the eye can catch.
+- **Static-burst transition** between channels: a 280 ms SVG-noise
+  overlay that jitters via stepped `background-position`, then the
+  next clip mounts. The TrailerPlayer remounts via `key={appid}` so HLS
+  reloads cleanly.
+
+**Keyboard**: `←` / `→` flip channels, `M` toggles mute. The handlers
+defer to text inputs (ignored if the target is an `<input>` or
+`<textarea>`) and bump the controls visibility on each keypress.
+
+**Data**: a `fetchTvClips` server function combines `topsellers`,
+`globaltopsellers`, and `newreleases` for `category3=24` across 2–3
+pages each, dedupes by appid, runs `enrichGames` to populate
+`trailerHls`, then filters to clips that actually have a trailer.
+Result: ~80–150 games per session. The page is loader-cached server-
+side with a 1-hour `staleTime`.
+
+**Shuffle**: the playlist shuffles on client mount inside a `useEffect`
+(SSR renders a "TUNING IN" placeholder to avoid a hydration flash from
+unshuffled-first-clip → shuffled-first-clip).
+
+This is the **only** place backdrop-blur appears outside the documented
+Glass table (the channel chip uses it). Adding it to the Glass table
+because the page is built on top of unpredictable trailer imagery and
+the chip needs to read against any frame.
+
+See: `src/components/TvViewer.tsx`, `src/routes/tv.tsx`,
+`fetchTvClips` in `src/server/fns.ts`.
 
 ---
 

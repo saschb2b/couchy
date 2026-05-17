@@ -183,6 +183,36 @@ export const fetchAppDetails = createServerFn({ method: 'GET' })
   });
 
 /**
+ * A wide pool of couch games with HLS trailers, for the /tv "channel surf"
+ * page. Combines several sort orders into a deduped list so the playlist
+ * feels long. Anything without a trailer is dropped at the end since the
+ * page is video-first. ~100 games is comfortably "near-endless" for a
+ * sitting; we cache via `searchSteam`'s per-page LRU.
+ */
+export const fetchTvClips = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<SteamGameSummary[]> => {
+    const couch = STEAM_CATEGORY.sharedSplitScreen;
+    const settled = await Promise.allSettled([
+      searchPaged({ categoryIds: [couch], sort: 'topsellers' }, 3),
+      searchPaged({ categoryIds: [couch], sort: 'globaltopsellers' }, 3),
+      searchPaged({ categoryIds: [couch], sort: 'newreleases' }, 2),
+    ]);
+    const seen = new Set<number>();
+    const candidates: SteamGameSummary[] = [];
+    for (const r of settled) {
+      if (r.status !== 'fulfilled') continue;
+      for (const g of r.value) {
+        if (seen.has(g.appid)) continue;
+        seen.add(g.appid);
+        candidates.push(g);
+      }
+    }
+    const enriched = await enrichGames(candidates);
+    return enriched.filter((g) => g.trailerHls !== null);
+  },
+);
+
+/**
  * Fetch the same query across multiple pages and return a single deduped list.
  * Each page is independently cached by `searchSteam`, so a refresh after a
  * "show more" only hits Steam for new pages.

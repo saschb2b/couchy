@@ -78,6 +78,9 @@ built by a chatbot".
   smell in the world.
 - **No `borderRadius: 999`** anywhere. The project's geometry is squared
   (2–4 px). One rounded element on the page would stand out as a mistake.
+  The **only documented exception** is the `/tv` viewer's screen container,
+  which uses 14–28 px to evoke the curvature of a real CRT tube. That's
+  the page's signature; don't replicate the rounding on other surfaces.
 - **No multiple accent colours competing for attention.** Couch-amber
   (`#ffd166`) is the brand. Sale-green (`#a5db5f`) is functional. Brick-red
   (`#e0533c`) is rare and reserved for danger / a single mood. Don't add a

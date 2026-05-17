@@ -42,6 +42,7 @@ export function AppShell({ children }: AppShellProps) {
   const isDiscover = pathname === '/';
   const isBrowse = pathname.startsWith('/browse');
   const isSaved = pathname.startsWith('/shortlist');
+  const isTv = pathname.startsWith('/tv');
   const isAbout = pathname.startsWith('/about');
 
   return (
@@ -151,6 +152,11 @@ export function AppShell({ children }: AppShellProps) {
                       {shortlistCount}
                     </Box>
                   )}
+                </Link>
+              </HeaderTab>
+              <HeaderTab active={isTv}>
+                <Link to="/tv" style={TAB_LINK_STYLE}>
+                  <TabLabel>TV</TabLabel>
                 </Link>
               </HeaderTab>
             </Stack>

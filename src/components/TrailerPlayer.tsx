@@ -16,6 +16,10 @@ interface TrailerPlayerProps {
   autoPlay?: boolean;
   /** CSS `object-position`. Default `'center'`. */
   objectPosition?: string;
+  /** Fires when the underlying `<video>` reaches its end. */
+  onEnded?: () => void;
+  /** Fires on a playback or HLS-load error. */
+  onError?: () => void;
 }
 
 /**
@@ -32,6 +36,8 @@ export function TrailerPlayer({
   muted = false,
   autoPlay = false,
   objectPosition = 'center',
+  onEnded,
+  onError,
 }: TrailerPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -50,8 +56,16 @@ export function TrailerPlayer({
     void (async () => {
       const mod = await import('hls.js');
       const Hls = mod.default;
-      if (teardown.cancelled || !Hls.isSupported()) return;
+      if (teardown.cancelled || !Hls.isSupported()) {
+        if (!Hls.isSupported() && onError) onError();
+        return;
+      }
       const hls = new Hls();
+      hls.on(Hls.Events.ERROR, (_e, data) => {
+        // Only surface fatal errors to the parent; non-fatal stalls
+        // recover on their own.
+        if (data.fatal && onError) onError();
+      });
       hls.loadSource(src);
       hls.attachMedia(video);
       teardown.hls = hls;
@@ -61,6 +75,9 @@ export function TrailerPlayer({
       teardown.cancelled = true;
       teardown.hls?.destroy();
     };
+    // onError intentionally not a dep — it's a stable callback in practice and
+    // re-running this effect on a new error handler would tear down hls.js.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   return (
@@ -74,6 +91,8 @@ export function TrailerPlayer({
       preload="metadata"
       playsInline
       poster={poster}
+      onEnded={onEnded}
+      onError={onError}
       sx={{
         width: '100%',
         height: '100%',
