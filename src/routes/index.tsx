@@ -6,10 +6,23 @@ import { fetchDiscoveryRails } from '../server/fns';
 import { Hero } from '../components/Hero';
 import { MoodGrid } from '../components/MoodGrid';
 import { GameRail } from '../components/GameRail';
+import { buildSeoMeta, canonicalLink } from '../seo';
 
 const HERO_SPOTLIGHT_COUNT = 4;
 
+const HOME_TITLE = 'Couchy · What should we play tonight?';
+const HOME_DESCRIPTION =
+  "Couch co-op picks for one screen and 1–4 controllers. Steam's same-screen catalog, hand-filtered so you can stop doomscrolling and start playing.";
+
 export const Route = createFileRoute('/')({
+  head: () => ({
+    meta: buildSeoMeta({
+      title: HOME_TITLE,
+      description: HOME_DESCRIPTION,
+      path: '/',
+    }),
+    links: [canonicalLink('/')],
+  }),
   loader: async () => {
     const payload = await fetchDiscoveryRails();
     return payload;

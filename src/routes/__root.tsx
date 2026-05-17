@@ -12,19 +12,51 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { useMemo } from 'react';
 import { theme } from '../theme';
 import { AppShell } from '../components/AppShell';
+import {
+  SITE_NAME,
+  SITE_TAGLINE,
+  SITE_URL,
+  buildSeoMeta,
+  jsonLdScript,
+} from '../seo';
+
+const ROOT_DESCRIPTION =
+  'A curated discovery page for couch / same-screen multiplayer games on Steam. Find your next pizza-and-controllers night in 30 seconds.';
+
+const ROOT_TITLE = `${SITE_NAME} · ${SITE_TAGLINE}`;
+
+// Schema.org WebSite JSON-LD. Picked up by Google for sitelinks searchbox
+// and "About this result" snippets. The author Person is the same shape
+// cant-hub uses, so the Knowledge Graph can connect the two.
+const WEBSITE_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: SITE_NAME,
+  alternateName: 'Couchy — couch co-op on Steam',
+  url: SITE_URL,
+  description: ROOT_DESCRIPTION,
+  inLanguage: 'en',
+  author: {
+    '@type': 'Person',
+    name: 'Sascha Becker',
+    url: 'https://saschb2b.com/',
+  },
+};
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: 'utf-8' },
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'Couchy · Steam couch co-op picks' },
-      {
-        name: 'description',
-        content:
-          'A curated discovery page for couch / same-screen multiplayer games on Steam. Find your next pizza-and-controllers night in 30 seconds.',
-      },
       { name: 'theme-color', content: '#10131a' },
+      { name: 'robots', content: 'index, follow' },
+      { name: 'author', content: 'Sascha Becker' },
+      ...buildSeoMeta({
+        title: ROOT_TITLE,
+        description: ROOT_DESCRIPTION,
+        path: '/',
+        imageAlt: 'Couchy — Steam couch co-op picks',
+      }),
     ],
     links: [
       {
@@ -44,8 +76,11 @@ export const Route = createRootRoute({
         rel: 'stylesheet',
         href: 'https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,800&family=Inter:wght@400;500;600;700;800&display=swap',
       },
+      // Canonical owned per-leaf-route — links don't dedup by `rel`, so a
+      // root-level canonical would race with /browse, /game, etc.
     ],
     scripts: [
+      jsonLdScript(WEBSITE_JSON_LD),
       // Umami auto-tracks SPA navigations via the History API, so a single
       // head-loaded async script covers every TanStack route.
       {

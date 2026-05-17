@@ -4,8 +4,18 @@ import Typography from '@mui/material/Typography';
 import Stack from '@mui/material/Stack';
 import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
+import { buildSeoMeta, canonicalLink } from '../seo';
 
 export const Route = createFileRoute('/about')({
+  head: () => ({
+    meta: buildSeoMeta({
+      title: 'About Couchy · A guide to playing games with people in the room',
+      description:
+        "Why Couchy exists, what's actually on it, and a note on what isn't. A fan project, not affiliated with Valve.",
+      path: '/about',
+    }),
+    links: [canonicalLink('/about')],
+  }),
   component: AboutPage,
 });
 

@@ -14,6 +14,91 @@ import { Lightbox } from '../components/Lightbox';
 import type { LightboxImage } from '../components/Lightbox';
 import { ShortlistTextButton } from '../components/ShortlistButton';
 import { TrailerPlayer } from '../components/TrailerPlayer';
+import { buildSeoMeta, canonicalLink, jsonLdScript } from '../seo';
+
+function libraryHeroUrl(appid: number): string {
+  return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
+}
+
+/**
+ * Strip Steam's marketing-copy noise out of a description for use in meta
+ * tags. Steam frequently leads `short_description` with HTML or a bullet
+ * sequence; we want a single clean sentence under ~200 chars.
+ */
+function metaDescription(d: SteamAppDetails): string {
+  const stripped = d.short_description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  if (stripped.length <= 200) return stripped;
+  // Truncate on a word boundary near 200, append ellipsis.
+  const slice = stripped.slice(0, 200);
+  const lastSpace = slice.lastIndexOf(' ');
+  return `${slice.slice(0, lastSpace > 120 ? lastSpace : 200).trim()}…`;
+}
+
+/**
+ * Schema.org VideoGame JSON-LD for rich Google results. Inputs come straight
+ * from Steam's appdetails so we don't hand-curate metadata per title.
+ */
+function videoGameJsonLd(d: SteamAppDetails): Record<string, unknown> {
+  const out: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'VideoGame',
+    name: d.name,
+    description: metaDescription(d),
+    image: libraryHeroUrl(d.steam_appid),
+    url: `https://couchy.saschb2b.com/game/${String(d.steam_appid)}`,
+    applicationCategory: 'Game',
+    operatingSystem: [
+      d.platforms?.windows === true ? 'Windows' : null,
+      d.platforms?.mac === true ? 'macOS' : null,
+      d.platforms?.linux === true ? 'Linux' : null,
+    ].filter((p): p is string => p !== null),
+  };
+  if (d.developers !== undefined && d.developers.length > 0) {
+    out.author = d.developers.map((name) => ({ '@type': 'Organization', name }));
+  }
+  if (d.publishers !== undefined && d.publishers.length > 0) {
+    out.publisher = d.publishers.map((name) => ({ '@type': 'Organization', name }));
+  }
+  if (d.genres !== undefined && d.genres.length > 0) {
+    out.genre = d.genres.map((g) => g.description);
+  }
+  if (d.release_date?.date !== undefined && !d.release_date.coming_soon) {
+    out.datePublished = d.release_date.date;
+  }
+  if (d.metacritic !== undefined) {
+    out.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: d.metacritic.score,
+      bestRating: 100,
+      worstRating: 0,
+      ratingCount: 1,
+    };
+  } else if (d.recommendations !== undefined && d.recommendations.total > 0) {
+    out.aggregateRating = {
+      '@type': 'AggregateRating',
+      ratingValue: 'positive',
+      ratingCount: d.recommendations.total,
+    };
+  }
+  if (d.price_overview !== undefined) {
+    out.offers = {
+      '@type': 'Offer',
+      price: (d.price_overview.final / 100).toFixed(2),
+      priceCurrency: d.price_overview.currency,
+      availability: 'https://schema.org/InStock',
+      url: `https://store.steampowered.com/app/${String(d.steam_appid)}/`,
+    };
+  } else if (d.is_free) {
+    out.offers = {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      availability: 'https://schema.org/InStock',
+      url: `https://store.steampowered.com/app/${String(d.steam_appid)}/`,
+    };
+  }
+  return out;
+}
 
 export const Route = createFileRoute('/game/$appid')({
   loader: async ({ params }) => {
@@ -24,13 +109,31 @@ export const Route = createFileRoute('/game/$appid')({
     }
     return { data };
   },
+  head: ({ loaderData }) => {
+    if (loaderData === undefined) {
+      // 404 path — root defaults are good enough.
+      return {};
+    }
+    const d = loaderData.data;
+    const path = `/game/${String(d.steam_appid)}`;
+    const title = `${d.name} · Steam couch co-op · Couchy`;
+    const description = metaDescription(d);
+    return {
+      meta: buildSeoMeta({
+        title,
+        description,
+        path,
+        image: libraryHeroUrl(d.steam_appid),
+        imageAlt: `${d.name} key art`,
+        ogType: 'video.other',
+      }),
+      links: [canonicalLink(path)],
+      scripts: [jsonLdScript(videoGameJsonLd(d))],
+    };
+  },
   staleTime: 24 * 60 * 60 * 1000,
   component: GameDetailPage,
 });
-
-function libraryHeroUrl(appid: number): string {
-  return `https://shared.fastly.steamstatic.com/store_item_assets/steam/apps/${String(appid)}/library_hero.jpg`;
-}
 
 function GameDetailPage() {
   const { data } = Route.useLoaderData();

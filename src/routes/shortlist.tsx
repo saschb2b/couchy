@@ -10,8 +10,22 @@ import { removeFromShortlist } from '../lib/shortlist';
 import type { ShortlistItem } from '../lib/shortlist';
 import { CardActionAreaLink } from '../components/RouterLinks';
 import { ButtonLink } from '../components/RouterLinks';
+import { buildSeoMeta, canonicalLink } from '../seo';
 
 export const Route = createFileRoute('/shortlist')({
+  head: () => ({
+    meta: [
+      ...buildSeoMeta({
+        title: 'Shortlist · Couchy',
+        description:
+          'Games saved for your next couch night. Stored on this device only.',
+        path: '/shortlist',
+      }),
+      // localStorage-only data — don't index empty SSR snapshots.
+      { name: 'robots', content: 'noindex, follow' },
+    ],
+    links: [canonicalLink('/shortlist')],
+  }),
   // SSR returns an empty list (localStorage is client-only). The hook fills in
   // after hydration via useSyncExternalStore.
   ssr: false,

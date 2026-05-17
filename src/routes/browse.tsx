@@ -9,6 +9,7 @@ import { STEAM_CATEGORY, STEAM_TAG } from '../server/steam/categories';
 import type { SteamSort } from '../server/steam/categories';
 import type { SteamGameSummary } from '../server/steam/types';
 import { GameCard } from '../components/GameCard';
+import { buildSeoMeta, canonicalLink } from '../seo';
 
 type Mood = 'party' | 'brain' | 'story' | 'versus' | 'all';
 type Party = 0 | 2 | 3 | 4 | 5;
@@ -81,6 +82,38 @@ interface MoodFilter {
 // All five moods now resolve to distinct Steam queries. The hint copy in the
 // MOODS table below has to stay in sync with the tag chosen here, otherwise
 // users see "Strategy & co-op planning" and get a Story Rich rail.
+/**
+ * Title/description per filter combination. We bias toward party-size since
+ * it's the highest-signal context for a share ("look, all the 4-player ones"),
+ * then mood, then the on-sale toggle. Sort doesn't change the title because
+ * it doesn't change *what* you're browsing, only the order.
+ */
+function browseSeoCopy(search: BrowseSearch): { title: string; description: string } {
+  const partyPhrase =
+    search.party === 0
+      ? null
+      : search.party === 5
+        ? '5+ player'
+        : `${String(search.party)}-player`;
+  const moodPhrase: Record<Mood, string | null> = {
+    all: null,
+    party: 'loud & silly',
+    brain: 'strategy & co-op planning',
+    story: 'co-op story',
+    versus: 'versus & brawler',
+  };
+  const moodLabel = moodPhrase[search.mood];
+  const subject = [partyPhrase, moodLabel, 'couch co-op games']
+    .filter((s): s is string => s !== null)
+    .join(' ');
+  const titleSubject = subject.charAt(0).toUpperCase() + subject.slice(1);
+  const title = `${titleSubject}${search.specials ? ' on sale' : ''} · Couchy`;
+  const description = search.specials
+    ? `On-sale ${subject} on Steam right now, hand-filtered for couch nights.`
+    : `Browse ${subject} on Steam. Hand-filtered to genuinely same-screen titles, with PCGamingWiki-backed player counts.`;
+  return { title, description };
+}
+
 function moodToFilter(mood: Mood): MoodFilter {
   switch (mood) {
     case 'all':
@@ -166,6 +199,24 @@ export const Route = createFileRoute('/browse')({
   },
   staleTime: 5 * 60 * 1000,
   component: BrowsePage,
+  head: ({ match }) => {
+    const search = match.search;
+    const { title, description } = browseSeoCopy(search);
+    // Canonical drops `pageCount` so /browse?party=4 and /browse?party=4&pageCount=3
+    // collapse into one indexable URL. Mood, sort, specials, and party stay —
+    // each yields meaningfully different content.
+    const canonical = new URLSearchParams();
+    if (search.mood !== 'all') canonical.set('mood', search.mood);
+    if (search.sort !== 'topsellers') canonical.set('sort', search.sort);
+    if (search.specials) canonical.set('specials', 'true');
+    if (search.party !== 0) canonical.set('party', String(search.party));
+    const qs = canonical.toString();
+    const path = qs.length > 0 ? `/browse?${qs}` : '/browse';
+    return {
+      meta: buildSeoMeta({ title, description, path }),
+      links: [canonicalLink(path)],
+    };
+  },
 });
 
 function BrowsePage() {
