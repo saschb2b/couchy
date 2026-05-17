@@ -235,20 +235,27 @@ function BrowsePage() {
 
   // Party-size is a client-side filter on already-loaded results, so flipping
   // it must not reset `pageCount` (would throw away 10 pages of scroll for a
-  // free in-memory filter).
+  // free in-memory filter). Replace instead of push so the back button
+  // doesn't walk the user through every party-size toggle they made.
   const updateParty = (party: Party) => {
     void navigate({
       to: '/browse',
       search: { ...search, party },
       resetScroll: false,
+      replace: true,
     });
   };
 
+  // Replace instead of push: infinite-scroll page increments aren't
+  // "destinations" the back button should iterate through. Without this,
+  // pressing back on /browse walks pageCount 4 → 3 → 2 → 1 before
+  // reaching the page the user came from.
   const loadMore = () => {
     void navigate({
       to: '/browse',
       search: { ...search, pageCount: Math.min(MAX_PAGE_COUNT, search.pageCount + 1) },
       resetScroll: false,
+      replace: true,
     });
   };
 

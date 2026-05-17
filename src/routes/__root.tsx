@@ -83,10 +83,18 @@ export const Route = createRootRoute({
       jsonLdScript(WEBSITE_JSON_LD),
       // Umami auto-tracks SPA navigations via the History API, so a single
       // head-loaded async script covers every TanStack route.
+      // `data-exclude-search="true"` strips query strings before the page-
+      // view is reported, so `/browse?mood=party&pageCount=4` and
+      // `/browse?sort=newreleases` collapse into a single `/browse` event
+      // instead of every filter toggle and infinite-scroll tick firing
+      // its own pageview. Trade-off: we lose visibility into which
+      // filters get the most use. If we want that later, instrument the
+      // filter handlers with `umami.track('mood', { value })` events.
       {
         async: true,
         src: 'https://umami.saschb2b.com/script.js',
         'data-website-id': 'c9d09f7c-888b-4c91-b17d-786b14eda960',
+        'data-exclude-search': 'true',
       },
     ],
   }),
