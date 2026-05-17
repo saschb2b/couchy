@@ -253,10 +253,20 @@ function BrowsePage() {
       clearTimeout(arm);
       observer?.disconnect();
     };
-    // loadMore closes over `search`; depending on search.pageCount is
-    // sufficient to re-create the observer after each navigation.
+    // Every search field has to be a dep: `loadMore` closes over `search`
+    // and re-creates the URL on each fire, so a stale closure (e.g. from a
+    // party-filter toggle that doesn't bump pageCount) would navigate back
+    // to the old filter and silently overwrite the user's selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, reachedEnd, search.pageCount]);
+  }, [
+    isLoading,
+    reachedEnd,
+    search.pageCount,
+    search.party,
+    search.mood,
+    search.sort,
+    search.specials,
+  ]);
 
   const retry = () => {
     void router.invalidate();
