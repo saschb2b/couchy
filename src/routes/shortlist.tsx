@@ -37,7 +37,16 @@ function ShortlistPage() {
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 5, md: 9 } }}>
       <Stack spacing={2} sx={{ mb: { xs: 5, md: 8 }, maxWidth: 920 }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            alignItems: 'center',
+            // Hidden on xs: the active Saved nav icon + the H1 already
+            // identify this page. Eyebrow earns its place on desktop.
+            display: { xs: 'none', sm: 'flex' },
+          }}
+        >
           <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
           <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
             Your shortlist

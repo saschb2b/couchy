@@ -87,30 +87,19 @@ export function AppShell({ children }: AppShellProps) {
               }}
               aria-label="Couchy, home"
             >
-              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-                <Typography
-                  component="span"
-                  sx={{
-                    fontFamily: 'h1.fontFamily',
-                    fontWeight: 800,
-                    fontStyle: 'italic',
-                    letterSpacing: '-0.04em',
-                    fontSize: 26,
-                    lineHeight: 1,
-                  }}
-                >
-                  Couchy
-                </Typography>
-                <Box
-                  aria-hidden
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    backgroundColor: 'primary.main',
-                  }}
-                />
-              </Stack>
+              <Typography
+                component="span"
+                sx={{
+                  fontFamily: 'h1.fontFamily',
+                  fontWeight: 800,
+                  fontStyle: 'italic',
+                  letterSpacing: '-0.04em',
+                  fontSize: 26,
+                  lineHeight: 1,
+                }}
+              >
+                Couchy
+              </Typography>
             </Link>
 
             <Box sx={{ flex: 1 }} />

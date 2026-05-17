@@ -336,9 +336,6 @@ These are the small ornaments that make the page feel hand-set. They're
 each used exactly once or in one named pattern. If you find yourself
 reaching for one of these "for variety," ask whether you're cheapening it.
 
-- **The amber dot.** A 6 px circle next to the wordmark in the AppBar.
-  The only true circle on the page. Don't reuse it as a generic separator
-  or status indicator.
 - **The 36 × 1 px rule + overline pair.** A short amber horizontal line
   followed by an overline label. Used as the section eyebrow on the
   `/browse`, `/shortlist`, and detail-page hero. Originally on the
@@ -387,10 +384,11 @@ A 64 px sticky `AppBar` with the project's glass recipe (the same
 Glass). Layout, left to right:
 
 - **Wordmark** as the home link. "Couchy" in Fraunces italic at 26 px,
-  weight 800, paired with the 6 px amber dot. The wordmark is both the
-  brand mark *and* the home affordance, per NN/g's logo-top-left
-  convention. No paraphrase caption underneath: the wordmark plus page
-  context implies what the site is.
+  weight 800. The wordmark is both the brand mark *and* the home
+  affordance, per NN/g's logo-top-left convention. No caption underneath,
+  no decorative dot, no separator: the wordmark plus page context
+  implies what the site is, and any extra ornament is paraphrase or
+  decoration that has to earn its place. It can't.
 - **Primary tabs** flushed right of centre: `DISCOVER`, `BROWSE`,
   `SAVED`. Allcaps Inter at 13 px, weight 700,
   `letter-spacing: 0.14em`. Each tab is a TanStack `<Link>` inside a
@@ -683,8 +681,9 @@ If your change introduces any of the following, stop and rework:
 - A `backdrop-filter` anywhere except the AppBar, the SAVED pill on a card,
   and the icon-button overlays (shortlist / remove / lightbox-zoom). All
   uses are about *legibility over imagery*, not decoration.
-- A `border-radius` greater than 4. Pills and full circles are forbidden
-  (the AppBar dot is the one exception, scoped to a 6 px ornament).
+- A `border-radius` greater than 4. Pills and full circles are forbidden.
+  No exceptions on cards or chrome; the `/tv` viewer's CRT corners
+  (14 – 28 px) are the only documented page-scoped exception.
 - A gradient on text.
 - A gradient button. Buttons are flat amber or hairline-outlined.
 - An emoji as a UI element (mood icons are MUI icons, not emoji).

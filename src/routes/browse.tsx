@@ -333,7 +333,17 @@ function BrowsePage() {
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
       <Stack spacing={2} sx={{ mb: { xs: 5, md: 8 }, maxWidth: 920 }}>
-        <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{
+            alignItems: 'center',
+            // Hidden on xs: the URL, the active nav icon, and the H1
+            // already identify this as the catalog. On desktop the
+            // eyebrow earns its place as editorial section labelling.
+            display: { xs: 'none', sm: 'flex' },
+          }}
+        >
           <Box sx={{ width: 36, height: 1, backgroundColor: 'primary.main' }} />
           <Typography variant="overline" sx={{ color: 'primary.main', fontWeight: 700 }}>
             The catalog
@@ -381,19 +391,6 @@ function BrowsePage() {
           sx={{ alignItems: { md: 'center' } }}
         >
           <Box sx={{ minWidth: { md: 260 } }}>
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ alignItems: 'center', mb: 0.75 }}
-            >
-              <Box sx={{ width: 24, height: 1, backgroundColor: 'primary.main' }} />
-              <Typography
-                variant="overline"
-                sx={{ color: 'primary.main', fontWeight: 700 }}
-              >
-                Start here
-              </Typography>
-            </Stack>
             <Typography
               sx={{
                 fontFamily: 'h1.fontFamily',

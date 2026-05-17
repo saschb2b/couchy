@@ -477,18 +477,6 @@ export function TvViewer({ clips }: TvViewerProps) {
           >
             <Box sx={{ minWidth: 0, flex: 1 }}>
               <Typography
-                variant="overline"
-                sx={{
-                  color: 'primary.main',
-                  display: 'block',
-                  mb: { xs: 0.25, md: 0.5 },
-                  fontWeight: 700,
-                  letterSpacing: '0.18em',
-                }}
-              >
-                Now playing
-              </Typography>
-              <Typography
                 title={current.name}
                 sx={{
                   fontFamily: 'h1.fontFamily',
@@ -706,18 +694,6 @@ export function TvViewer({ clips }: TvViewerProps) {
           }}
         >
           <Box>
-            <Typography
-              variant="overline"
-              sx={{
-                color: 'primary.main',
-                display: 'block',
-                fontWeight: 700,
-                letterSpacing: '0.18em',
-                mb: 0.5,
-              }}
-            >
-              Now playing
-            </Typography>
             <Typography
               sx={{
                 fontFamily: 'h1.fontFamily',
