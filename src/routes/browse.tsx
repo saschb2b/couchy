@@ -443,6 +443,60 @@ function BrowsePage() {
         </Typography>
       </Box>
 
+      {/* Mobile filter pills — xs/sm only. Replaces the desktop sidebar
+          which stacks to the top on narrow viewports and eats ~400 px of
+          vertical space before the user sees a single game. Three short
+          horizontal-scroll pill rows (Mood / Sort / Price); single-signal
+          active state via border colour, matching the party-size strip
+          and the FilterRow sidebar per "Less is more". */}
+      <Box sx={{ display: { xs: 'block', md: 'none' }, mb: { xs: 4, sm: 6 } }}>
+        <FilterStrip label="Mood">
+          {MOODS.map((m) => (
+            <FilterPill
+              key={m.value}
+              active={search.mood === m.value}
+              onClick={() => {
+                updateFilter({ mood: m.value });
+              }}
+            >
+              {m.label}
+            </FilterPill>
+          ))}
+        </FilterStrip>
+        <FilterStrip label="Sort">
+          {SORTS.map((s) => (
+            <FilterPill
+              key={s.value}
+              active={search.sort === s.value}
+              onClick={() => {
+                updateFilter({ sort: s.value });
+              }}
+            >
+              {s.label}
+            </FilterPill>
+          ))}
+        </FilterStrip>
+        <FilterStrip label="Price">
+          <FilterPill
+            active={!search.specials}
+            onClick={() => {
+              updateFilter({ specials: false });
+            }}
+          >
+            All prices
+          </FilterPill>
+          <FilterPill
+            active={search.specials}
+            accent="#a5db5f"
+            onClick={() => {
+              updateFilter({ specials: true });
+            }}
+          >
+            On sale only
+          </FilterPill>
+        </FilterStrip>
+      </Box>
+
       <Box
         sx={{
           display: 'grid',
@@ -453,10 +507,13 @@ function BrowsePage() {
       >
         {/* Sticky sidebar — filter sections. `maxHeight` + `overflowY: auto`
             keep all sections reachable on shorter viewports; without these,
-            a tall filter list under `position: sticky` clips the bottom. */}
+            a tall filter list under `position: sticky` clips the bottom.
+            Hidden on xs/sm — the mobile pill strip above does this job
+            without the sidebar's vertical real-estate cost. */}
         <Box
           component="aside"
           sx={{
+            display: { xs: 'none', md: 'block' },
             position: { md: 'sticky' },
             top: { md: 96 },
             alignSelf: 'flex-start',
@@ -564,7 +621,11 @@ function BrowsePage() {
                 // expand to the widest card's intrinsic min-content (set by
                 // the <img> file dimensions). Steam serves capsules at varying
                 // pixel widths so the columns end up unequal otherwise.
-                xs: 'repeat(2, minmax(0, 1fr))',
+                // xs is a single column on purpose: with a full-width
+                // landscape card the artwork has real presence on a
+                // phone, vs the cramped 2-col layout where each card was
+                // ~180 px wide.
+                xs: 'repeat(1, minmax(0, 1fr))',
                 sm: 'repeat(3, minmax(0, 1fr))',
                 md: 'repeat(3, minmax(0, 1fr))',
                 lg: 'repeat(4, minmax(0, 1fr))',
@@ -767,6 +828,88 @@ function FilterSection({ title, children }: FilterSectionProps) {
         {title}
       </Typography>
       <Stack spacing={0}>{children}</Stack>
+    </Box>
+  );
+}
+
+interface FilterStripProps {
+  label: string;
+  children: React.ReactNode;
+}
+
+function FilterStrip({ label, children }: FilterStripProps) {
+  return (
+    <Box sx={{ mb: 2 }}>
+      <Typography
+        variant="overline"
+        sx={{
+          color: 'text.secondary',
+          display: 'block',
+          mb: 1,
+          fontSize: 10,
+          letterSpacing: '0.18em',
+        }}
+      >
+        {label}
+      </Typography>
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 1,
+          overflowX: 'auto',
+          pb: 1,
+          // Cinematic bleed past the container edge so the row hints at
+          // overflow rather than sitting flush.
+          mx: -2,
+          px: 2,
+          scrollbarWidth: 'none',
+          '&::-webkit-scrollbar': { display: 'none' },
+        }}
+      >
+        {children}
+      </Box>
+    </Box>
+  );
+}
+
+interface FilterPillProps {
+  active: boolean;
+  accent?: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}
+
+function FilterPill({ active, accent, onClick, children }: FilterPillProps) {
+  const activeColor = accent ?? 'var(--mui-palette-primary-main)';
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      sx={{
+        all: 'unset',
+        cursor: 'pointer',
+        flex: '0 0 auto',
+        paddingInline: 1.5,
+        paddingBlock: 0.875,
+        fontSize: 12,
+        fontWeight: 600,
+        letterSpacing: '0.01em',
+        color: 'text.primary',
+        border: '1px solid',
+        borderColor: active ? activeColor : 'divider',
+        // Single signal for active state: the border colour. Text stays
+        // text.primary; no bg tint, no weight bump. Matches PartyButton
+        // and FilterRow per DESIGN.md → "Less is more".
+        transition: 'border-color 160ms ease',
+        '&:focus-visible': {
+          outline: '2px solid',
+          outlineColor: 'primary.main',
+          outlineOffset: 2,
+        },
+      }}
+    >
+      {children}
     </Box>
   );
 }
