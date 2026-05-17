@@ -369,6 +369,62 @@ underneath the H2 or to its right.
 
 See: `MoodGrid.tsx` (heading row), `GameRail.tsx` (heading row).
 
+### Header (`AppShell`)
+
+A 64 px sticky `AppBar` with the project's glass recipe (the same
+`rgba(14, 12, 10, 0.78)` + `blur(14px) saturate(1.2)` documented under
+Glass). Layout, left to right:
+
+- **Wordmark** as the home link. "Couchy" in Fraunces italic at 26 px,
+  weight 800, paired with the 6 px amber dot. The wordmark is both the
+  brand mark *and* the home affordance, per NN/g's logo-top-left
+  convention. No paraphrase caption underneath: the wordmark plus page
+  context implies what the site is.
+- **Primary tabs** flushed right of centre: `DISCOVER`, `BROWSE`,
+  `SAVED`. Allcaps Inter at 13 px, weight 700,
+  `letter-spacing: 0.14em`. Each tab is a TanStack `<Link>` inside a
+  positioned `<Box>` that carries the active-state pseudo-element.
+  `SAVED` shows an 18 px amber count badge when the shortlist is
+  non-empty.
+- **Secondary `ABOUT` link** at the far right, past a vertical hairline
+  divider. Lower hierarchy via smaller font (11 px) and `text.secondary`
+  colour. About is utility, not a peer destination; the visual weight
+  reflects that.
+
+**Active state: one signal only.** The active tab gets a 2 px amber rule
+positioned `top: 0; left: 14px; right: 14px` via a `::before`
+pseudo-element. Tab labels stay `text.primary` regardless of active
+state. The rule alone communicates state. This matches the Steam-
+storefront redesign concept's top-rule pattern and satisfies the
+accessibility guidance to pair colour with a non-colour shape (the rule
+*is* the non-colour shape, and we deliberately don't stack a colour
+change on top because that would be double-encoding per "Less is more").
+
+**Hover state: one signal, distinct from active.** Hovering a tab tints
+the label `primary.main`. Because hover and active are different states,
+using a different channel for each is single-encoding per state, not
+double — the user sees colour shift for "interactive" and the top rule
+for "current page".
+
+**Mobile.** Tabs hide below `sm`. The wordmark stays. We don't ship a
+hamburger menu because the three destinations are reachable via in-page
+affordances (the discovery hero's "Browse the catalog" CTA, the mood
+tiles linking into `/browse`, the in-grid shortlist toggle).
+
+Active detection uses `useRouterState({ select: (s) => s.location.pathname })`
+with `pathname === '/'`, `startsWith('/browse')`, etc. Cleaner than
+`useMatchRoute` for this case and survives `/browse` search-param
+variants without per-param matching.
+
+**Sourcing:** [NN/g — Navigation: You Are Here](https://www.nngroup.com/articles/navigation-you-are-here/),
+[NN/g — Killing Off the Global Navigation](https://www.nngroup.com/articles/killing-global-navigation-one-trend-avoid/),
+[UXPin — Button States 2026](https://www.uxpin.com/studio/blog/button-states/),
+[Baymard 2025 on active-state benchmark](https://baymard.com/) (95% of
+e-commerce sites fail to highlight the user's current section in main
+nav; Couchy is in the 5% by design).
+
+See: `AppShell.tsx`.
+
 ### Game card (the core archetype)
 
 The card is **one bounded object**, not an image with caption text

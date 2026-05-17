@@ -1,20 +1,49 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
 import Stack from '@mui/material/Stack';
-import { Link } from '@tanstack/react-router';
-import { ButtonLink } from './RouterLinks';
+import { Link, useRouterState } from '@tanstack/react-router';
 import { useShortlist } from '../lib/useShortlist';
 
 interface AppShellProps {
   children: ReactNode;
 }
 
+const TAB_LINK_STYLE: CSSProperties = {
+  textDecoration: 'none',
+  color: 'inherit',
+  display: 'inline-flex',
+  alignItems: 'center',
+  height: '100%',
+  paddingInline: 14,
+};
+
+// Active-state pseudo-element. Single signal — a 2 px amber rule across
+// the top of the AppBar above the active tab. Don't pair with a colour
+// or weight change on the label: the rule is the encoding, anything else
+// is double-encoding (see DESIGN.md → "Less is more").
+const activeTabRule = {
+  content: '""',
+  position: 'absolute',
+  top: 0,
+  left: 14,
+  right: 14,
+  height: 2,
+  backgroundColor: 'primary.main',
+};
+
 export function AppShell({ children }: AppShellProps) {
   const shortlistCount = useShortlist().length;
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const isDiscover = pathname === '/';
+  const isBrowse = pathname.startsWith('/browse');
+  const isSaved = pathname.startsWith('/shortlist');
+  const isAbout = pathname.startsWith('/about');
+
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
       <AppBar
@@ -29,22 +58,28 @@ export function AppShell({ children }: AppShellProps) {
         }}
       >
         <Container maxWidth="xl">
-          <Toolbar disableGutters sx={{ gap: 2, minHeight: 64 }}>
+          <Toolbar disableGutters sx={{ minHeight: 64, gap: { xs: 1, md: 2 } }}>
             <Link
               to="/"
               search={{}}
-              style={{ textDecoration: 'none', color: 'inherit' }}
+              style={{
+                textDecoration: 'none',
+                color: 'inherit',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
               aria-label="Couchy, home"
             >
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'baseline' }}>
+              <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
                 <Typography
-                  variant="h5"
                   component="span"
                   sx={{
+                    fontFamily: 'h1.fontFamily',
                     fontWeight: 800,
-                    letterSpacing: '-0.04em',
                     fontStyle: 'italic',
+                    letterSpacing: '-0.04em',
                     fontSize: 26,
+                    lineHeight: 1,
                   }}
                 >
                   Couchy
@@ -56,81 +91,112 @@ export function AppShell({ children }: AppShellProps) {
                     height: 6,
                     borderRadius: '50%',
                     backgroundColor: 'primary.main',
-                    alignSelf: 'center',
                   }}
                 />
-                <Typography
-                  variant="overline"
-                  sx={{
-                    color: 'text.secondary',
-                    display: { xs: 'none', sm: 'inline' },
-                  }}
-                >
-                  Steam couch picks
-                </Typography>
               </Stack>
             </Link>
+
             <Box sx={{ flex: 1 }} />
+
+            {/* Primary tabs */}
             <Stack
               direction="row"
-              spacing={0.5}
-              sx={{ display: { xs: 'none', sm: 'flex' } }}
+              sx={{
+                display: { xs: 'none', sm: 'flex' },
+                height: 64,
+                gap: { sm: 0, md: 0.5 },
+              }}
             >
-              <ButtonLink to="/" search={{}} variant="text" color="inherit">
-                Discover
-              </ButtonLink>
-              <ButtonLink
-                to="/browse"
-                search={{
-                  mood: 'all',
-                  sort: 'topsellers',
-                  specials: false,
-                  party: 0,
-                  pageCount: 1,
-                }}
-                variant="text"
-                color="inherit"
-              >
-                Browse
-              </ButtonLink>
-              <ButtonLink
-                to="/shortlist"
-                variant="text"
-                color="inherit"
-                sx={{
-                  // Badge with count, only when something is saved.
-                  '& .shortlist-badge': {
-                    ml: 0.75,
-                    minWidth: 22,
-                    height: 22,
-                    px: 0.75,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    backgroundColor: 'primary.main',
-                    color: 'background.default',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  },
-                }}
-              >
-                Saved
-                {shortlistCount > 0 && (
-                  <Box component="span" className="shortlist-badge">
-                    {shortlistCount}
-                  </Box>
-                )}
-              </ButtonLink>
-              <ButtonLink to="/about" variant="text" color="inherit">
-                About
-              </ButtonLink>
+              <HeaderTab active={isDiscover}>
+                <Link to="/" search={{}} style={TAB_LINK_STYLE}>
+                  <TabLabel>Discover</TabLabel>
+                </Link>
+              </HeaderTab>
+              <HeaderTab active={isBrowse}>
+                <Link
+                  to="/browse"
+                  search={{
+                    mood: 'all',
+                    sort: 'topsellers',
+                    specials: false,
+                    party: 0,
+                    pageCount: 1,
+                  }}
+                  style={TAB_LINK_STYLE}
+                >
+                  <TabLabel>Browse</TabLabel>
+                </Link>
+              </HeaderTab>
+              <HeaderTab active={isSaved}>
+                <Link to="/shortlist" style={TAB_LINK_STYLE}>
+                  <TabLabel>Saved</TabLabel>
+                  {shortlistCount > 0 && (
+                    <Box
+                      component="span"
+                      sx={{
+                        ml: 1,
+                        minWidth: 18,
+                        height: 18,
+                        px: 0.625,
+                        fontSize: 10.5,
+                        fontWeight: 700,
+                        letterSpacing: '0.02em',
+                        backgroundColor: 'primary.main',
+                        color: 'background.default',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {shortlistCount}
+                    </Box>
+                  )}
+                </Link>
+              </HeaderTab>
             </Stack>
+
+            {/* Secondary: About sits past a vertical hairline at a lower
+                visual weight (smaller font, secondary colour) to mark it
+                as utility rather than a peer destination. */}
+            <Box
+              sx={{
+                position: 'relative',
+                height: 64,
+                display: { xs: 'none', sm: 'flex' },
+                alignItems: 'stretch',
+                pl: { sm: 1, md: 1.5 },
+                ml: { sm: 0.5, md: 1 },
+                borderLeft: '1px solid',
+                borderColor: 'divider',
+                '&::before': isAbout ? activeTabRule : undefined,
+                '&:hover .about-label': { color: 'text.primary' },
+              }}
+            >
+              <Link to="/about" style={{ ...TAB_LINK_STYLE, paddingInline: 10 }}>
+                <Box
+                  component="span"
+                  className="about-label"
+                  sx={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.14em',
+                    color: 'text.secondary',
+                    transition: 'color 160ms ease',
+                    lineHeight: 1,
+                  }}
+                >
+                  ABOUT
+                </Box>
+              </Link>
+            </Box>
           </Toolbar>
         </Container>
       </AppBar>
+
       <Box component="main" sx={{ flex: 1 }}>
         {children}
       </Box>
+
       <Box
         component="footer"
         sx={{
@@ -189,6 +255,45 @@ export function AppShell({ children }: AppShellProps) {
           </Stack>
         </Container>
       </Box>
+    </Box>
+  );
+}
+
+function HeaderTab({ active, children }: { active: boolean; children: ReactNode }) {
+  return (
+    <Box
+      sx={{
+        position: 'relative',
+        height: 64,
+        display: 'flex',
+        alignItems: 'stretch',
+        '&::before': active ? activeTabRule : undefined,
+        '&:hover .tab-label': {
+          color: 'primary.main',
+        },
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function TabLabel({ children }: { children: ReactNode }) {
+  return (
+    <Box
+      component="span"
+      className="tab-label"
+      sx={{
+        fontSize: 13,
+        fontWeight: 700,
+        letterSpacing: '0.14em',
+        color: 'text.primary',
+        textTransform: 'uppercase',
+        transition: 'color 160ms ease',
+        lineHeight: 1,
+      }}
+    >
+      {children}
     </Box>
   );
 }
