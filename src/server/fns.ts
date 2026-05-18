@@ -18,10 +18,22 @@ export interface SearchInput {
   categoryIds?: number[];
   tagIds?: number[];
   sort?: SteamSort;
-  /** Number of 25-result pages to fetch and concatenate. Defaults to 1. */
+  /**
+   * How many 25-game *result* pages the caller wants. With no filter that's
+   * the raw page count; with a filter (`partySize`, `maxPriceCents`) the
+   * server pages adaptively under the hood until that many matches exist.
+   */
   pageCount?: number;
   specials?: boolean;
   maxPriceCents?: number;
+  /**
+   * Number of bodies on the couch tonight (2–8). When set, results are
+   * filtered to games that fit that party using PCGamingWiki structured
+   * data with the description-parsed `maxPlayers` as fallback. Server-side
+   * so each user-visible "load more" returns a full batch of matches
+   * instead of 25 raw results filtered down to a sparse handful.
+   */
+  partySize?: number;
 }
 
 /**
@@ -93,6 +105,11 @@ function validateSearchInput(input: unknown): SearchInput {
   const specials = typeof obj.specials === 'boolean' ? obj.specials : undefined;
   const maxPriceCents =
     typeof obj.maxPriceCents === 'number' ? obj.maxPriceCents : undefined;
+  const partySizeRaw = obj.partySize;
+  const partySize =
+    typeof partySizeRaw === 'number' && Number.isFinite(partySizeRaw)
+      ? Math.max(0, Math.min(8, Math.floor(partySizeRaw)))
+      : undefined;
   const out: SearchInput = {};
   if (categoryIds !== undefined) out.categoryIds = categoryIds;
   if (tagIds !== undefined) out.tagIds = tagIds;
@@ -100,6 +117,7 @@ function validateSearchInput(input: unknown): SearchInput {
   if (pageCount !== undefined) out.pageCount = pageCount;
   if (specials !== undefined) out.specials = specials;
   if (maxPriceCents !== undefined) out.maxPriceCents = maxPriceCents;
+  if (partySize !== undefined && partySize > 0) out.partySize = partySize;
   return out;
 }
 
@@ -115,6 +133,162 @@ function validateAppidInput(input: unknown): { appid: number } {
   return { appid };
 }
 
+const SEARCH_PAGE_SIZE = 25;
+/**
+ * Hard cap on raw Steam pages fetched per call. Bounds the adaptive loop
+ * when a filter matches a small slice of Steam's couch catalog (e.g.
+ * `partySize=5+` — most cat-24 games don't fit 5 on the couch). 24 raw
+ * pages = 600 candidate games scanned per "load more"; with caching, only
+ * the first cold-cache user pays full freight.
+ */
+const MAX_RAW_PAGES_PER_REQUEST = 24;
+/**
+ * Max raw Steam page requests fired in one parallel wave. Steam tolerates
+ * 200 req / 5 min cumulatively but rejects short bursts that overshoot
+ * its per-second limiter. Without this cap a `pageCount=5` filtered load
+ * fanned out 15 simultaneous fetches and the second one back-to-back
+ * tripped the limiter, which surfaced as "Nothing matches." in the UI
+ * for filters that should have returned a full page. 6 is empirically
+ * the sweet spot: fast enough that cold loads finish in ~3 s, gentle
+ * enough that exploratory clicking through filters doesn't trip Steam.
+ */
+const MAX_PARALLEL_PAGES = 6;
+
+function fitsParty(game: SteamGameSummary, partySize: number): boolean {
+  if (partySize <= 0) return true;
+  const lp = game.localPlayers;
+  if (lp !== null) {
+    return partySize >= lp.min && partySize <= lp.max;
+  }
+  if (game.maxPlayers !== null) {
+    return partySize >= 2 && partySize <= game.maxPlayers;
+  }
+  return false;
+}
+
+interface PostFetchFilters {
+  partySize?: number;
+  maxPriceCents?: number;
+}
+
+async function applyPostFetchFilters(
+  games: readonly SteamGameSummary[],
+  filters: PostFetchFilters,
+): Promise<SteamGameSummary[]> {
+  const maxPrice = filters.maxPriceCents;
+  const priced =
+    maxPrice !== undefined
+      ? games.filter(
+          (g) => g.finalPriceCents !== null && g.finalPriceCents <= maxPrice,
+        )
+      : [...games];
+  const partySize = filters.partySize;
+  if (partySize === undefined || partySize <= 0) {
+    return enrichGames(priced);
+  }
+  // Party fit needs the PCGW/appdetails enrichment, so enrich first.
+  const enriched = await enrichGames(priced);
+  return enriched.filter((g) => fitsParty(g, partySize));
+}
+
+/**
+ * Adaptive paging: fetch raw Steam pages in waves until we have enough
+ * games that pass the user's filters, or we exhaust Steam / hit the
+ * per-request cap. Without this, a sparse filter (party=5+) returned 25
+ * raw results that the client filtered down to ~3 visible games per
+ * "load more", which read as "loads only a few results" in user reports.
+ */
+async function fetchAndFilter(
+  baseOpts: {
+    categoryIds: number[];
+    tagIds?: number[];
+    sort?: SteamSort;
+    extra?: Record<string, string>;
+  },
+  pageCount: number,
+  filters: PostFetchFilters,
+): Promise<SteamSearchPage> {
+  const target = pageCount * SEARCH_PAGE_SIZE;
+  const hasFilter =
+    (filters.partySize !== undefined && filters.partySize > 0) ||
+    filters.maxPriceCents !== undefined;
+  const maxRawPages = hasFilter
+    ? Math.min(pageCount * 6, MAX_RAW_PAGES_PER_REQUEST)
+    : pageCount;
+  // Start optimistic: with a filter we likely need more raw than the user
+  // requested. 3x is empirically about right for party=5+ on cat 24, but
+  // cap parallelism at `MAX_PARALLEL_PAGES` so we don't burst-trip Steam.
+  const firstBatch = hasFilter
+    ? Math.min(pageCount * 3, maxRawPages, MAX_PARALLEL_PAGES)
+    : Math.min(pageCount, MAX_PARALLEL_PAGES);
+
+  const seen = new Set<number>();
+  const rawGames: SteamGameSummary[] = [];
+  let totalCount = 0;
+  let partial = false;
+  let fetched = 0;
+
+  // Returns true when any page in the batch rejected. Returning the flag
+  // (instead of mutating a closured `let`) keeps ESLint's narrowing happy
+  // and makes the partial-state propagation explicit at the call sites.
+  const fetchBatch = async (from: number, to: number): Promise<boolean> => {
+    let failedAny = false;
+    const settled = await Promise.allSettled(
+      Array.from({ length: to - from }, (_unused, i) =>
+        searchSteam({ ...baseOpts, page: from + i }),
+      ),
+    );
+    for (const r of settled) {
+      if (r.status !== 'fulfilled') {
+        failedAny = true;
+        continue;
+      }
+      if (totalCount === 0) totalCount = r.value.totalCount;
+      for (const g of r.value.games) {
+        if (seen.has(g.appid)) continue;
+        seen.add(g.appid);
+        rawGames.push(g);
+      }
+    }
+    fetched = to;
+    return failedAny;
+  };
+
+  partial = await fetchBatch(0, firstBatch);
+
+  while (
+    hasFilter &&
+    !partial &&
+    fetched < maxRawPages &&
+    (totalCount === 0 || fetched * SEARCH_PAGE_SIZE < totalCount)
+  ) {
+    const candidate = await applyPostFetchFilters(rawGames, filters);
+    if (candidate.length >= target) {
+      return {
+        totalCount,
+        start: 0,
+        games: candidate.slice(0, target),
+        partial,
+      };
+    }
+    const nextBatchSize = Math.min(
+      Math.max(2, pageCount),
+      maxRawPages - fetched,
+      MAX_PARALLEL_PAGES,
+    );
+    if (nextBatchSize <= 0) break;
+    partial = await fetchBatch(fetched, fetched + nextBatchSize);
+  }
+
+  const final = await applyPostFetchFilters(rawGames, filters);
+  return {
+    totalCount,
+    start: 0,
+    games: final.slice(0, target),
+    partial,
+  };
+}
+
 export const searchCouchGames = createServerFn({ method: 'GET' })
   .inputValidator(validateSearchInput)
   .handler(async ({ data }): Promise<SteamSearchPage> => {
@@ -125,55 +299,21 @@ export const searchCouchGames = createServerFn({ method: 'GET' })
     const pageCount = Math.max(1, Math.min(MAX_PAGE_COUNT, data.pageCount ?? 1));
     const categoryIds = data.categoryIds ?? [STEAM_CATEGORY.sharedSplitScreen];
 
-    // allSettled (not all) — a single Steam 403 mid-chain shouldn't crash
-    // the whole route. Take the contiguous prefix of fulfilled pages; the
-    // first failure marks the result as `partial` so the browse UI halts
-    // auto-loading and shows a deliberate retry.
-    const settled = await Promise.allSettled(
-      Array.from({ length: pageCount }, (_unused, page) =>
-        searchSteam({
-          categoryIds,
-          ...(data.tagIds !== undefined && { tagIds: data.tagIds }),
-          ...(data.sort !== undefined && { sort: data.sort }),
-          page,
-          ...(Object.keys(extra).length > 0 && { extra }),
+    return fetchAndFilter(
+      {
+        categoryIds,
+        ...(data.tagIds !== undefined && { tagIds: data.tagIds }),
+        ...(data.sort !== undefined && { sort: data.sort }),
+        ...(Object.keys(extra).length > 0 && { extra }),
+      },
+      pageCount,
+      {
+        ...(data.partySize !== undefined && { partySize: data.partySize }),
+        ...(data.maxPriceCents !== undefined && {
+          maxPriceCents: data.maxPriceCents,
         }),
-      ),
+      },
     );
-    const pages: SteamSearchPage[] = [];
-    let partial = false;
-    for (const r of settled) {
-      if (r.status === 'fulfilled') {
-        pages.push(r.value);
-      } else {
-        partial = true;
-        break;
-      }
-    }
-
-    const seen = new Set<number>();
-    const games: SteamGameSummary[] = [];
-    for (const p of pages) {
-      for (const g of p.games) {
-        if (seen.has(g.appid)) continue;
-        seen.add(g.appid);
-        games.push(g);
-      }
-    }
-
-    const totalCount = pages[0]?.totalCount ?? 0;
-    const max = data.maxPriceCents;
-    const filtered =
-      max !== undefined
-        ? games.filter((g) => g.finalPriceCents !== null && g.finalPriceCents <= max)
-        : games;
-
-    return {
-      totalCount,
-      start: 0,
-      games: await enrichGames(filtered),
-      partial,
-    };
   });
 
 export const fetchAppDetails = createServerFn({ method: 'GET' })

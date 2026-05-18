@@ -52,28 +52,6 @@ const PARTY_SIZES: { value: Party; short: string; hint: string }[] = [
   { value: 5, short: '5+', hint: 'Big group' },
 ];
 
-/**
- * Does `game` accommodate a party of `partySize`?
- *
- * Prefer PCGamingWiki's structured min/max range when we have it (high
- * confidence: hand-edited wiki rows). Fall back to the description-parsed
- * `maxPlayers` when only that exists, treating it as `min=2, max=N` so we
- * don't lose Steam-cat-24 games the wiki hasn't catalogued. Games with
- * neither signal are excluded when the filter is active — honest about
- * uncertainty.
- */
-function fitsParty(game: SteamGameSummary, partySize: number): boolean {
-  if (partySize <= 0) return true;
-  const lp = game.localPlayers;
-  if (lp !== null) {
-    return partySize >= lp.min && partySize <= lp.max;
-  }
-  if (game.maxPlayers !== null) {
-    return partySize >= 2 && partySize <= game.maxPlayers;
-  }
-  return false;
-}
-
 interface MoodFilter {
   categoryIds: number[];
   tagIds?: number[];
@@ -183,6 +161,7 @@ export const Route = createFileRoute('/browse')({
     sort: search.sort,
     specials: search.specials,
     pageCount: search.pageCount,
+    party: search.party,
   }),
   loader: async ({ deps }) => {
     const filter = moodToFilter(deps.mood);
@@ -193,6 +172,7 @@ export const Route = createFileRoute('/browse')({
         sort: deps.sort,
         specials: deps.specials,
         pageCount: deps.pageCount,
+        ...(deps.party > 0 && { partySize: deps.party }),
       },
     });
     return { result };
@@ -222,7 +202,13 @@ export const Route = createFileRoute('/browse')({
 function BrowsePage() {
   const search = Route.useSearch();
   const { result } = Route.useLoaderData();
-  const isLoading = Route.useMatch({ select: (m) => m.status === 'pending' });
+  // `isFetching` (not `status === 'pending'`) — TanStack flips status to
+  // 'pending' only on cold loads. For pageCount/party revalidations the
+  // route keeps `status: 'success'` with stale data while `isFetching`
+  // goes to 'loader'. Using `status` here meant the 25 placeholder
+  // skeletons never rendered during "load more", so the user saw no
+  // pending state at all.
+  const isFetching = Route.useMatch({ select: (m) => m.isFetching !== false });
   const navigate = useNavigate();
   const router = useRouter();
 
@@ -233,16 +219,13 @@ function BrowsePage() {
     });
   };
 
-  // Party-size is a client-side filter on already-loaded results, so flipping
-  // it must not reset `pageCount` (would throw away 10 pages of scroll for a
-  // free in-memory filter). Replace instead of push so the back button
-  // doesn't walk the user through every party-size toggle they made.
+  // Party is now a server-side filter, so changing it requires a fresh
+  // fetch — reset pageCount and let scroll go back to the top, matching
+  // every other filter change.
   const updateParty = (party: Party) => {
     void navigate({
       to: '/browse',
-      search: { ...search, party },
-      resetScroll: false,
-      replace: true,
+      search: { ...search, party, pageCount: 1 },
     });
   };
 
@@ -259,65 +242,54 @@ function BrowsePage() {
     });
   };
 
-  // totalCount can come back as 0 when Steam serves a markup variant we don't
-  // parse (seen on datacenter IPs for cat 24). In that case "reached end" is
-  // unknowable from the count alone; let the IntersectionObserver keep
-  // probing — Steam returns an empty page eventually and reachedEnd flips.
+  // totalCount is Steam's *unfiltered* page total. We only surface it as
+  // "X of Y" when no filter is shrinking the result set, since Y wouldn't
+  // mean what the user thinks otherwise. With a filter we just show the
+  // count we've loaded.
   const knownTotal = result.totalCount > 0 ? result.totalCount : null;
-  // `partial` halts auto-load too: Steam is rate-limiting us, so the right
-  // move is to stop hammering and let the user decide when to retry.
+  // The server pages adaptively until it has `pageCount * 25` matches
+  // (or hits its cap). Fewer than requested = it ran out of candidates,
+  // either because the source is exhausted or the cap protected us from
+  // a runaway pull on a very sparse filter. Either way, no more to load.
+  // `partial` (Steam rate-limited mid-fetch) also halts auto-load and
+  // surfaces the retry banner below.
   const reachedEnd =
     result.partial ||
-    (knownTotal !== null && result.games.length >= knownTotal) ||
+    result.games.length < search.pageCount * PAGE_SIZE ||
     search.pageCount >= MAX_PAGE_COUNT;
   const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
-
-  const filteredGames =
-    search.party === 0
-      ? result.games
-      : result.games.filter((g) => fitsParty(g, search.party));
   const partyActive = search.party > 0;
 
   // Infinite scroll: a sentinel below the grid auto-triggers the next page
-  // when it enters the viewport. The 600px root margin gives us a head start
-  // so the next batch usually lands before the user scrolls into the empty
-  // zone.
-  //
-  // The observer is *armed* after a short delay on every re-render. Without
-  // the delay, a sparse-filter view (e.g. party=5+) leaves the sentinel
-  // permanently in view, and the observer chains pages back-to-back fast
-  // enough to trip Steam's rate limit (~40 req/min). The 1800ms gate caps
-  // chained fetches at roughly that rate even when sentinel never leaves
-  // the viewport, while staying invisible during normal scrolling (the user
-  // is rarely at the sentinel exactly 1.8s after a load).
+  // when it enters the viewport. The 600px root margin gives us a head
+  // start so the next batch usually lands before the user scrolls into
+  // the empty zone. No timer-gate needed — each user-visible "load more"
+  // returns ~25 actual matches (server filters before responding), which
+  // pushes the sentinel well outside the rootMargin until the user
+  // scrolls further. Natural rate limit via scroll behaviour.
   const sentinelRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const sentinel = sentinelRef.current;
     if (sentinel === null) return undefined;
-    if (isLoading || reachedEnd) return undefined;
-    let observer: IntersectionObserver | null = null;
-    const arm = setTimeout(() => {
-      observer = new IntersectionObserver(
-        (entries) => {
-          if (entries[0]?.isIntersecting === true) {
-            loadMore();
-          }
-        },
-        { rootMargin: '600px 0px' },
-      );
-      observer.observe(sentinel);
-    }, 1800);
+    if (isFetching || reachedEnd) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting === true) {
+          loadMore();
+        }
+      },
+      { rootMargin: '600px 0px' },
+    );
+    observer.observe(sentinel);
     return () => {
-      clearTimeout(arm);
-      observer?.disconnect();
+      observer.disconnect();
     };
-    // Every search field has to be a dep: `loadMore` closes over `search`
-    // and re-creates the URL on each fire, so a stale closure (e.g. from a
-    // party-filter toggle that doesn't bump pageCount) would navigate back
-    // to the old filter and silently overwrite the user's selection.
+    // `loadMore` closes over `search`; depending on every field
+    // re-creates the observer after each navigation so the closure
+    // doesn't overwrite a filter the user just toggled.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    isLoading,
+    isFetching,
     reachedEnd,
     search.pageCount,
     search.party,
@@ -599,11 +571,9 @@ function BrowsePage() {
                 fontSize: 14,
               }}
             >
-              {partyActive
-                ? `${filteredGames.length.toLocaleString()} games`
-                : knownTotal === null
-                  ? `${result.games.length.toLocaleString()} games`
-                  : `${result.games.length.toLocaleString()} of ${knownTotal.toLocaleString()} games`}
+              {partyActive || search.specials || knownTotal === null
+                ? `${result.games.length.toLocaleString()} games`
+                : `${result.games.length.toLocaleString()} of ${knownTotal.toLocaleString()} games`}
               {search.specials && ' · sale only'}
               {partyActive && ` · fits ${String(search.party)}${search.party === 5 ? '+' : ''}`}
             </Typography>
@@ -629,19 +599,19 @@ function BrowsePage() {
               },
             }}
           >
-            {filteredGames.map((game: SteamGameSummary) => (
+            {result.games.map((game: SteamGameSummary) => (
               <GameCard key={game.appid} game={game} layout="grid" />
             ))}
-            {isLoading &&
+            {isFetching &&
               // Placeholder cells that mirror the card's aspect ratio so the
-              // grid grows immediately when "Show more" is clicked, instead
-              // of leaving the user staring at the same scrollable view.
+              // grid grows immediately on "load more", instead of leaving
+              // the user staring at the same scrollable view.
               Array.from({ length: PAGE_SIZE }).map((_unused, i) => (
                 <GameCardSkeleton key={`sk-${String(i)}`} />
               ))}
           </Box>
 
-          {result.games.length === 0 && (
+          {result.games.length === 0 && !isFetching && !result.partial && (
             <Box sx={{ py: 10, textAlign: 'center' }}>
               <Typography
                 variant="h4"
@@ -650,26 +620,31 @@ function BrowsePage() {
                 Nothing matches.
               </Typography>
               <Typography color="text.secondary">
-                Try a different mood, or turn off the sale filter.
+                {partyActive
+                  ? search.specials
+                    ? 'Try a different mood or party size, or turn off the sale filter.'
+                    : 'Try a different mood or party size.'
+                  : 'Try a different mood, or turn off the sale filter.'}
               </Typography>
             </Box>
           )}
 
           {result.games.length > 0 &&
-            filteredGames.length === 0 &&
             reachedEnd &&
-            !result.partial && (
-              <Box sx={{ py: 8, textAlign: 'center' }}>
+            !result.partial &&
+            search.pageCount < MAX_PAGE_COUNT && (
+              <Box sx={{ py: 5, textAlign: 'center' }}>
                 <Typography
-                  variant="h5"
-                  sx={{ fontStyle: 'italic', color: 'text.secondary', mb: 1 }}
+                  color="text.secondary"
+                  sx={{
+                    fontFamily: 'h1.fontFamily',
+                    fontStyle: 'italic',
+                    fontSize: 14,
+                  }}
                 >
-                  Nothing fits that party.
-                </Typography>
-                <Typography color="text.secondary">
-                  No games in this mood fit {search.party}
-                  {search.party === 5 ? '+' : ''} on the couch. Try a different
-                  mood or party size.
+                  {partyActive
+                    ? `All ${result.games.length.toLocaleString()} games that fit ${String(search.party)}${search.party === 5 ? '+' : ''} on the couch.`
+                    : `All ${result.games.length.toLocaleString()} games.`}
                 </Typography>
               </Box>
             )}
