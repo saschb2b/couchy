@@ -602,10 +602,13 @@ function BrowsePage() {
             {result.games.map((game: SteamGameSummary) => (
               <GameCard key={game.appid} game={game} layout="grid" />
             ))}
-            {isFetching &&
-              // Placeholder cells that mirror the card's aspect ratio so the
-              // grid grows immediately on "load more", instead of leaving
-              // the user staring at the same scrollable view.
+            {!reachedEnd &&
+              // Always render the next batch as skeletons when more is
+              // loadable — not just during the actual fetch. Otherwise a
+              // user scrolling to the bottom sees "end", a beat of empty
+              // page, then 25 real cards pop in once the network round-trip
+              // finishes. The continuous skeleton row tells them more is
+              // coming so the load swap is a refinement, not a surprise.
               Array.from({ length: PAGE_SIZE }).map((_unused, i) => (
                 <GameCardSkeleton key={`sk-${String(i)}`} />
               ))}
