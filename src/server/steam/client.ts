@@ -4,7 +4,15 @@ import { COUCH_PRIMARY_CATEGORY } from './categories';
 import type { SteamSort } from './categories';
 import type { SteamAppDetails, SteamSearchPage } from './types';
 
-const SEARCH_TTL_MS = 30 * 60 * 1000;
+/**
+ * Steam's couch catalog moves on the order of days (new releases, occasional
+ * tag re-categorisations), not minutes. A 6-hour TTL means a prewarm pass
+ * at server start carries one process through a typical workday, and warm
+ * users never block on Steam. The trade-off is staleness for sale prices on
+ * `?specials=true`; an in-progress sale could appear up to 6 h after it
+ * ends, but Couchy is a discovery page not a sales tracker so that's fine.
+ */
+const SEARCH_TTL_MS = 6 * 60 * 60 * 1000;
 const APPDETAILS_TTL_MS = 24 * 60 * 60 * 1000;
 
 const FETCH_TIMEOUT_MS = 8000;

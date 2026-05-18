@@ -289,32 +289,42 @@ async function fetchAndFilter(
   };
 }
 
+/**
+ * Pure async function the server fn delegates to. Exposed so background
+ * cache-warm code (`prewarm.ts`) can drive the same logic without going
+ * through TanStack Start's request-context-bound RPC wrapper, which
+ * throws "No Start context found in AsyncLocalStorage" outside a request.
+ */
+export async function runSearchCouchGames(
+  data: SearchInput,
+): Promise<SteamSearchPage> {
+  const extra: Record<string, string> = {};
+  if (data.specials === true) {
+    extra.specials = '1';
+  }
+  const pageCount = Math.max(1, Math.min(MAX_PAGE_COUNT, data.pageCount ?? 1));
+  const categoryIds = data.categoryIds ?? [STEAM_CATEGORY.sharedSplitScreen];
+
+  return fetchAndFilter(
+    {
+      categoryIds,
+      ...(data.tagIds !== undefined && { tagIds: data.tagIds }),
+      ...(data.sort !== undefined && { sort: data.sort }),
+      ...(Object.keys(extra).length > 0 && { extra }),
+    },
+    pageCount,
+    {
+      ...(data.partySize !== undefined && { partySize: data.partySize }),
+      ...(data.maxPriceCents !== undefined && {
+        maxPriceCents: data.maxPriceCents,
+      }),
+    },
+  );
+}
+
 export const searchCouchGames = createServerFn({ method: 'GET' })
   .inputValidator(validateSearchInput)
-  .handler(async ({ data }): Promise<SteamSearchPage> => {
-    const extra: Record<string, string> = {};
-    if (data.specials === true) {
-      extra.specials = '1';
-    }
-    const pageCount = Math.max(1, Math.min(MAX_PAGE_COUNT, data.pageCount ?? 1));
-    const categoryIds = data.categoryIds ?? [STEAM_CATEGORY.sharedSplitScreen];
-
-    return fetchAndFilter(
-      {
-        categoryIds,
-        ...(data.tagIds !== undefined && { tagIds: data.tagIds }),
-        ...(data.sort !== undefined && { sort: data.sort }),
-        ...(Object.keys(extra).length > 0 && { extra }),
-      },
-      pageCount,
-      {
-        ...(data.partySize !== undefined && { partySize: data.partySize }),
-        ...(data.maxPriceCents !== undefined && {
-          maxPriceCents: data.maxPriceCents,
-        }),
-      },
-    );
-  });
+  .handler(async ({ data }): Promise<SteamSearchPage> => runSearchCouchGames(data));
 
 export const fetchAppDetails = createServerFn({ method: 'GET' })
   .inputValidator(validateAppidInput)
@@ -371,11 +381,14 @@ const HERO_RAIL_KEYS: readonly string[] = [
   'top-sellers',
 ];
 
-export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
-  async (): Promise<DiscoveryPayload> => {
-    const couch = STEAM_CATEGORY.sharedSplitScreen;
-    const couchCoop = STEAM_CATEGORY.sharedSplitScreenCoop;
-    const couchVersus = STEAM_CATEGORY.sharedSplitScreenPvp;
+/**
+ * Pure async function the server fn delegates to. See `runSearchCouchGames`
+ * for why this is split out (Start context requirement).
+ */
+export async function runFetchDiscoveryRails(): Promise<DiscoveryPayload> {
+  const couch = STEAM_CATEGORY.sharedSplitScreen;
+  const couchCoop = STEAM_CATEGORY.sharedSplitScreenCoop;
+  const couchVersus = STEAM_CATEGORY.sharedSplitScreenPvp;
 
     // Fetch a wide candidate pool from each source in parallel. 2 pages × 25
     // ≈ 50 candidates each — plenty of slack for cross-rail dedup.
@@ -519,7 +532,10 @@ export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
     const spotlights = buildSpotlights(enrichedRails, HERO_SPOTLIGHT_COUNT);
 
     return { rails: enrichedRails, spotlights };
-  },
+}
+
+export const fetchDiscoveryRails = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<DiscoveryPayload> => runFetchDiscoveryRails(),
 );
 
 /**
@@ -577,4 +593,18 @@ function seededIndex(daySeed: number, key: string, modulo: number): number {
     h = Math.imul(h, 16777619) >>> 0;
   }
   return h % modulo;
+}
+
+// Trigger background cache warm-up on server boot. Dynamic import breaks
+// the prewarm → fns → prewarm cycle and keeps the module out of any
+// client bundle that happens to pull this file in for type info. Gated
+// to prod + opt-in via env so `pnpm dev` doesn't fire 25 Steam requests
+// every time vite restarts.
+if (
+  typeof window === 'undefined' &&
+  (process.env.NODE_ENV === 'production' || process.env.PREWARM === '1')
+) {
+  void import('./prewarm').then((m) => {
+    m.startPrewarm();
+  });
 }
