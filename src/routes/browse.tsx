@@ -247,18 +247,29 @@ function BrowsePage() {
   // mean what the user thinks otherwise. With a filter we just show the
   // count we've loaded.
   const knownTotal = result.totalCount > 0 ? result.totalCount : null;
-  // The server pages adaptively until it has `pageCount * 25` matches
-  // (or hits its cap). Fewer than requested = it ran out of candidates,
-  // either because the source is exhausted or the cap protected us from
-  // a runaway pull on a very sparse filter. Either way, no more to load.
-  // `partial` (Steam rate-limited mid-fetch) also halts auto-load and
-  // surfaces the retry banner below.
-  const reachedEnd =
-    result.partial ||
-    result.games.length < search.pageCount * PAGE_SIZE ||
-    search.pageCount >= MAX_PAGE_COUNT;
   const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
   const partyActive = search.party > 0;
+  // Exhaustion has two flavors:
+  //   • Post-fetch filter (party): server pages until it has pageCount*25
+  //     matches or caps. Fewer than the target = it gave up, so end.
+  //   • Otherwise: trust Steam's totalCount. Don't use "fewer than target"
+  //     here — the server dedups appids across pages, so two overlapping
+  //     pages can yield 48 unique games when the user asked for 50, which
+  //     would falsely end the list at "48 of 898 games." If totalCount is
+  //     unavailable (rare; Steam serves a degraded markup variant we can't
+  //     parse on datacenter IPs), prefer letting the user keep scrolling
+  //     over a false-positive end — at worst they cycle through cached
+  //     pages until they give up; at best Steam recovers and the list
+  //     keeps growing.
+  // `partial` (Steam rate-limited mid-fetch) always halts auto-load and
+  // surfaces the retry banner below; the MAX_PAGE_COUNT cap is a sanity
+  // ceiling on URL-driven pagination.
+  const reachedEnd =
+    result.partial ||
+    search.pageCount >= MAX_PAGE_COUNT ||
+    (partyActive
+      ? result.games.length < search.pageCount * PAGE_SIZE
+      : knownTotal !== null && result.games.length >= knownTotal);
 
   // Infinite scroll: a sentinel below the grid auto-triggers the next page
   // when it enters the viewport. The 600px root margin gives us a head
