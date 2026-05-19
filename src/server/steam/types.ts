@@ -85,11 +85,4 @@ export interface SteamSearchPage {
   totalCount: number;
   start: number;
   games: SteamGameSummary[];
-  /**
-   * Set when one or more requested pages failed (typically a 403/429 from
-   * Steam's rate limiter). The `games` array is the contiguous prefix of
-   * pages that did succeed. The browse UI uses this to halt auto-loading
-   * and offer the user a deliberate retry instead of hammering Steam.
-   */
-  partial: boolean;
 }

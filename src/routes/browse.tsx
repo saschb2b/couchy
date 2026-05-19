@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import Container from '@mui/material/Container';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -210,7 +210,6 @@ function BrowsePage() {
   // pending state at all.
   const isFetching = Route.useMatch({ select: (m) => m.isFetching !== false });
   const navigate = useNavigate();
-  const router = useRouter();
 
   const updateFilter = (patch: Partial<Omit<BrowseSearch, 'pageCount'>>) => {
     void navigate({
@@ -249,27 +248,15 @@ function BrowsePage() {
   const knownTotal = result.totalCount > 0 ? result.totalCount : null;
   const activeMood = MOODS.find((m) => m.value === search.mood) ?? MOODS[0];
   const partyActive = search.party > 0;
-  // Exhaustion has two flavors:
-  //   • Post-fetch filter (party): server pages until it has pageCount*25
-  //     matches or caps. Fewer than the target = it gave up, so end.
-  //   • Otherwise: trust Steam's totalCount. Don't use "fewer than target"
-  //     here — the server dedups appids across pages, so two overlapping
-  //     pages can yield 48 unique games when the user asked for 50, which
-  //     would falsely end the list at "48 of 898 games." If totalCount is
-  //     unavailable (rare; Steam serves a degraded markup variant we can't
-  //     parse on datacenter IPs), prefer letting the user keep scrolling
-  //     over a false-positive end — at worst they cycle through cached
-  //     pages until they give up; at best Steam recovers and the list
-  //     keeps growing.
-  // `partial` (Steam rate-limited mid-fetch) always halts auto-load and
-  // surfaces the retry banner below; the MAX_PAGE_COUNT cap is a sanity
-  // ceiling on URL-driven pagination.
+  // The server reads from a growing canonical list. "Got less than asked
+  // for" means we're at the bottom of whatever's currently available —
+  // either the list is exhausted (true end) or the background builder
+  // just hasn't appended further yet (soft end). Both cases behave the
+  // same in the UI: stop the sentinel, no skeletons. The user comes back
+  // later and the next read sees a larger list.
   const reachedEnd =
-    result.partial ||
     search.pageCount >= MAX_PAGE_COUNT ||
-    (partyActive
-      ? result.games.length < search.pageCount * PAGE_SIZE
-      : knownTotal !== null && result.games.length >= knownTotal);
+    result.games.length < search.pageCount * PAGE_SIZE;
 
   // Infinite scroll: a sentinel below the grid auto-triggers the next page
   // when it enters the viewport. The 600px root margin gives us a head
@@ -308,10 +295,6 @@ function BrowsePage() {
     search.sort,
     search.specials,
   ]);
-
-  const retry = () => {
-    void router.invalidate();
-  };
 
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 4, md: 8 } }}>
@@ -613,19 +596,17 @@ function BrowsePage() {
             {result.games.map((game: SteamGameSummary) => (
               <GameCard key={game.appid} game={game} layout="grid" />
             ))}
-            {!reachedEnd &&
-              // Always render the next batch as skeletons when more is
-              // loadable — not just during the actual fetch. Otherwise a
-              // user scrolling to the bottom sees "end", a beat of empty
-              // page, then 25 real cards pop in once the network round-trip
-              // finishes. The continuous skeleton row tells them more is
-              // coming so the load swap is a refinement, not a surprise.
+            {isFetching &&
+              // Skeletons render only while the route loader is actually
+              // in flight. Once the slice resolves the grid sits at its
+              // current size — if the canonical list grows later, the
+              // next visit picks up the longer list.
               Array.from({ length: PAGE_SIZE }).map((_unused, i) => (
                 <GameCardSkeleton key={`sk-${String(i)}`} />
               ))}
           </Box>
 
-          {result.games.length === 0 && !isFetching && !result.partial && (
+          {result.games.length === 0 && !isFetching && (
             <Box sx={{ py: 10, textAlign: 'center' }}>
               <Typography
                 variant="h4"
@@ -640,93 +621,6 @@ function BrowsePage() {
                     : 'Try a different mood or party size.'
                   : 'Try a different mood, or turn off the sale filter.'}
               </Typography>
-            </Box>
-          )}
-
-          {result.games.length > 0 &&
-            reachedEnd &&
-            !result.partial &&
-            search.pageCount < MAX_PAGE_COUNT && (
-              <Box sx={{ py: 5, textAlign: 'center' }}>
-                <Typography
-                  color="text.secondary"
-                  sx={{
-                    fontFamily: 'h1.fontFamily',
-                    fontStyle: 'italic',
-                    fontSize: 14,
-                  }}
-                >
-                  {partyActive
-                    ? `All ${result.games.length.toLocaleString()} games that fit ${String(search.party)}${search.party === 5 ? '+' : ''} on the couch.`
-                    : `All ${result.games.length.toLocaleString()} games.`}
-                </Typography>
-              </Box>
-            )}
-
-          {result.partial && (
-            <Box
-              sx={{
-                mt: 4,
-                py: 3,
-                px: 3,
-                borderTop: '1px solid',
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                display: 'flex',
-                flexDirection: { xs: 'column', sm: 'row' },
-                gap: 2,
-                alignItems: { sm: 'center' },
-                justifyContent: 'space-between',
-              }}
-            >
-              <Box>
-                <Typography
-                  sx={{
-                    fontFamily: 'h1.fontFamily',
-                    fontStyle: 'italic',
-                    fontSize: 18,
-                    color: 'text.primary',
-                    mb: 0.5,
-                  }}
-                >
-                  Steam is rate-limiting us.
-                </Typography>
-                <Typography
-                  color="text.secondary"
-                  sx={{ fontSize: 13, maxWidth: 520 }}
-                >
-                  We paused scrolling to avoid making it worse. Give it a minute
-                  and try again.
-                </Typography>
-              </Box>
-              <Box
-                component="button"
-                type="button"
-                onClick={retry}
-                sx={{
-                  all: 'unset',
-                  cursor: 'pointer',
-                  px: 2.5,
-                  py: 1.25,
-                  border: '1px solid',
-                  borderColor: 'primary.main',
-                  color: 'primary.main',
-                  fontWeight: 600,
-                  fontSize: 14,
-                  letterSpacing: '-0.005em',
-                  transition: 'background-color 160ms ease',
-                  '&:hover': {
-                    backgroundColor: 'rgba(255, 209, 102, 0.08)',
-                  },
-                  '&:focus-visible': {
-                    outline: '2px solid',
-                    outlineColor: 'primary.main',
-                    outlineOffset: 2,
-                  },
-                }}
-              >
-                Try again
-              </Box>
             </Box>
           )}
 
